@@ -2449,17 +2449,32 @@ final class Workspace: Identifiable, ObservableObject {
     }
     @Published var panelTitles: [UUID: String] = [:]
     @Published var panelCustomTitles: [UUID: String] = [:]
-    /// Random color-dot emoji assigned once per panel, prefixed onto its tab
-    /// title so tabs are visually distinguishable at a glance (cmux has no
-    /// native per-tab color rendering, unlike its workspace-level color).
-    private var panelColorDots: [UUID: String] = [:]
-    private static let tabColorDots = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫"]
+    /// Color-dot hex code assigned once per panel, prefixed onto its tab title
+    /// (via a `\u{2}RRGGBB\u{2}` marker the patched Bonsplit tab view parses
+    /// into a real colored dot) so tabs are visually distinguishable at a
+    /// glance (cmux has no native per-tab color rendering, unlike its
+    /// workspace-level color). Hues step around the color wheel by the golden
+    /// ratio conjugate so consecutive tabs stay maximally separated in color
+    /// even across dozens of open tabs, unlike a small fixed emoji palette
+    /// that starts repeating after ~7 tabs.
+    private var panelColorHexes: [UUID: String] = [:]
+    private static var nextColorDotIndex = 0
+    private static let goldenRatioConjugate = 0.618033988749895
 
-    private func colorDot(forPanelId panelId: UUID) -> String {
-        if let existing = panelColorDots[panelId] { return existing }
-        let dot = Self.tabColorDots.randomElement() ?? "⬜️"
-        panelColorDots[panelId] = dot
-        return dot
+    private func colorDotHex(forPanelId panelId: UUID) -> String {
+        if let existing = panelColorHexes[panelId] { return existing }
+        let index = Self.nextColorDotIndex
+        Self.nextColorDotIndex += 1
+        let hue = (Double(index) * Self.goldenRatioConjugate).truncatingRemainder(dividingBy: 1.0)
+        let color = NSColor(calibratedHue: hue, saturation: 0.65, brightness: 0.92, alpha: 1)
+        let hex = String(
+            format: "%02X%02X%02X",
+            Int((color.redComponent * 255).rounded()),
+            Int((color.greenComponent * 255).rounded()),
+            Int((color.blueComponent * 255).rounded())
+        )
+        panelColorHexes[panelId] = hex
+        return hex
     }
 
     /// Last path component of `path`, e.g. "/Users/x/Documents/Projects/cmux"
@@ -2472,11 +2487,11 @@ final class Workspace: Identifiable, ObservableObject {
     }
 
     private func withColorDot(_ title: String, panelId: UUID) -> String {
-        let dot = colorDot(forPanelId: panelId)
+        let marker = "\u{2}\(colorDotHex(forPanelId: panelId))\u{2}"
         guard let directory = panelDirectories[panelId], let folder = lastPathSegment(directory) else {
-            return "\(dot) \(title)"
+            return "\(marker) \(title)"
         }
-        return "\(dot) \(folder) — \(title)"
+        return "\(marker) \(folder) — \(title)"
     }
     /// Provenance of entries in `panelCustomTitles` (see ``CustomTitleSource``).
     /// An entry may be absent for a title carried across panel moves or
