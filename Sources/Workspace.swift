@@ -1572,7 +1572,7 @@ extension Workspace {
         if let panel = panels[panelId], let tabId = surfaceIdFromPanelId(panelId) {
             bonsplitController.updateTab(
                 tabId,
-                title: resolvedPanelTitle(panelId: panelId, fallback: panelTitles[panelId] ?? panel.displayTitle),
+                title: withColorDot(resolvedPanelTitle(panelId: panelId, fallback: panelTitles[panelId] ?? panel.displayTitle), panelId: panelId),
                 hasCustomTitle: panelCustomTitles[panelId] != nil
             )
         }
@@ -2449,6 +2449,36 @@ final class Workspace: Identifiable, ObservableObject {
     }
     @Published var panelTitles: [UUID: String] = [:]
     @Published var panelCustomTitles: [UUID: String] = [:]
+    /// Random color-dot emoji assigned once per panel, prefixed onto its tab
+    /// title so tabs are visually distinguishable at a glance (cmux has no
+    /// native per-tab color rendering, unlike its workspace-level color).
+    private var panelColorDots: [UUID: String] = [:]
+    private static let tabColorDots = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🟫"]
+
+    private func colorDot(forPanelId panelId: UUID) -> String {
+        if let existing = panelColorDots[panelId] { return existing }
+        let dot = Self.tabColorDots.randomElement() ?? "⬜️"
+        panelColorDots[panelId] = dot
+        return dot
+    }
+
+    /// Last two path components of `path`, e.g. "/Users/x/Documents/Projects/cmux"
+    /// -> "Projects/cmux". Returns nil for an empty/root path.
+    private func lastTwoPathSegments(_ path: String) -> String? {
+        let components = path.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: "/")
+            .map(String.init)
+        guard !components.isEmpty else { return nil }
+        return components.suffix(2).joined(separator: "/")
+    }
+
+    private func withColorDot(_ title: String, panelId: UUID) -> String {
+        let dot = colorDot(forPanelId: panelId)
+        guard let directory = panelDirectories[panelId], let folder = lastTwoPathSegments(directory) else {
+            return "\(dot) \(title)"
+        }
+        return "\(dot) \(folder) — \(title)"
+    }
     /// Provenance of entries in `panelCustomTitles` (see ``CustomTitleSource``).
     /// An entry may be absent for a title carried across panel moves or
     /// restored from older snapshots; absent provenance is treated as `.user`.
@@ -3155,7 +3185,7 @@ final class Workspace: Identifiable, ObservableObject {
             _ = browserPanel.requestAddressBarFocus(selectionIntent: .selectAll)
 
             if let tabId = bonsplitController.createTab(
-                title: browserPanel.displayTitle,
+                title: withColorDot(browserPanel.displayTitle, panelId: browserPanel.id),
                 icon: browserPanel.displayIcon,
                 kind: SurfaceKind.browser.rawValue,
                 isDirty: browserPanel.isDirty,
@@ -3193,7 +3223,7 @@ final class Workspace: Identifiable, ObservableObject {
 
             // Create initial tab in bonsplit and store the mapping
             if let tabId = bonsplitController.createTab(
-                title: title,
+                title: withColorDot(title, panelId: terminalPanel.id),
                 icon: "terminal.fill",
                 kind: SurfaceKind.terminal.rawValue,
                 isDirty: false,
@@ -3751,7 +3781,7 @@ final class Workspace: Identifiable, ObservableObject {
             if self.panelTitles[browserPanel.id] != nextTitle {
                 self.panelTitles[browserPanel.id] = nextTitle
             }
-            let resolvedTitle = self.resolvedPanelTitle(panelId: browserPanel.id, fallback: nextTitle)
+            let resolvedTitle = self.withColorDot(self.resolvedPanelTitle(panelId: browserPanel.id, fallback: nextTitle), panelId: browserPanel.id)
             let titleUpdate: String? = existing.title == resolvedTitle ? nil : resolvedTitle
             let faviconUpdate: Data?? = existing.iconImageData == favicon ? nil : .some(favicon)
             let loadingUpdate: Bool? = existing.isLoading == isLoading ? nil : isLoading
@@ -3836,7 +3866,7 @@ final class Workspace: Identifiable, ObservableObject {
                 if self.panelTitles[markdownPanel.id] != newTitle {
                     self.panelTitles[markdownPanel.id] = newTitle
                 }
-                let resolvedTitle = self.resolvedPanelTitle(panelId: markdownPanel.id, fallback: newTitle)
+                let resolvedTitle = self.withColorDot(self.resolvedPanelTitle(panelId: markdownPanel.id, fallback: newTitle), panelId: markdownPanel.id)
                 let titleUpdate: String? = existing.title == resolvedTitle ? nil : resolvedTitle
                 let dirtyUpdate: Bool? = existing.isDirty == isDirty ? nil : isDirty
                 guard titleUpdate != nil || dirtyUpdate != nil else { return }
@@ -3870,7 +3900,7 @@ final class Workspace: Identifiable, ObservableObject {
             if self.panelTitles[filePreviewPanel.id] != newTitle {
                 self.panelTitles[filePreviewPanel.id] = newTitle
             }
-            let resolvedTitle = self.resolvedPanelTitle(panelId: filePreviewPanel.id, fallback: newTitle)
+            let resolvedTitle = self.withColorDot(self.resolvedPanelTitle(panelId: filePreviewPanel.id, fallback: newTitle), panelId: filePreviewPanel.id)
             let resolvedIcon = RenderableSystemSymbol.resolvedSurfaceTabIcon(displayIcon)
             let titleUpdate: String? = existing.title == resolvedTitle ? nil : resolvedTitle
             let iconUpdate: String?? = existing.icon == resolvedIcon ? nil : .some(resolvedIcon)
@@ -3897,7 +3927,7 @@ final class Workspace: Identifiable, ObservableObject {
             if self.panelTitles[agentPanel.id] != newTitle {
                 self.panelTitles[agentPanel.id] = newTitle
             }
-            let resolvedTitle = self.resolvedPanelTitle(panelId: agentPanel.id, fallback: newTitle)
+            let resolvedTitle = self.withColorDot(self.resolvedPanelTitle(panelId: agentPanel.id, fallback: newTitle), panelId: agentPanel.id)
             let titleUpdate: String? = existing.title == resolvedTitle ? nil : resolvedTitle
             let dirtyUpdate: Bool? = existing.isDirty == isDirty ? nil : isDirty
             guard titleUpdate != nil || dirtyUpdate != nil else { return }
@@ -4168,7 +4198,7 @@ final class Workspace: Identifiable, ObservableObject {
         let baseTitle = panelTitles[panelId] ?? panel.displayTitle
         bonsplitController.updateTab(
             tabId,
-            title: resolvedPanelTitle(panelId: panelId, fallback: baseTitle),
+            title: withColorDot(resolvedPanelTitle(panelId: panelId, fallback: baseTitle), panelId: panelId),
             hasCustomTitle: panelCustomTitles[panelId] != nil
         )
         // A remote tmux mirror tab rename propagates to `rename-window`.
@@ -4579,6 +4609,14 @@ final class Workspace: Identifiable, ObservableObject {
         }
         let directoryChanged = panelDirectories[panelId] != trimmed
         if directoryChanged { panelDirectories[panelId] = trimmed }
+        if directoryChanged, let tabId = surfaceIdFromPanelId(panelId), let panel = panels[panelId] {
+            let baseTitle = panelTitles[panelId] ?? panel.displayTitle
+            bonsplitController.updateTab(
+                tabId,
+                title: withColorDot(resolvedPanelTitle(panelId: panelId, fallback: baseTitle), panelId: panelId),
+                hasCustomTitle: panelCustomTitles[panelId] != nil
+            )
+        }
         let trimmedDisplayLabel = displayLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if !trimmedDisplayLabel.isEmpty {
             if panelDirectoryDisplayLabels[panelId] != trimmedDisplayLabel {
@@ -5113,7 +5151,7 @@ final class Workspace: Identifiable, ObservableObject {
            let tabId = surfaceIdFromPanelId(panelId),
            let panel = panels[panelId] {
             let baseTitle = panelTitles[panelId] ?? panel.displayTitle
-            let resolvedTitle = resolvedPanelTitle(panelId: panelId, fallback: baseTitle)
+            let resolvedTitle = withColorDot(resolvedPanelTitle(panelId: panelId, fallback: baseTitle), panelId: panelId)
             bonsplitController.updateTab(
                 tabId,
                 title: resolvedTitle,
@@ -7291,7 +7329,7 @@ final class Workspace: Identifiable, ObservableObject {
         // Pre-generate the bonsplit tab ID so we can install the panel mapping before bonsplit
         // mutates layout state (avoids transient "Empty Panel" flashes during split).
         let newTab = Bonsplit.Tab(
-            title: newPanel.displayTitle,
+            title: withColorDot(newPanel.displayTitle, panelId: newPanel.id),
             icon: newPanel.displayIcon,
             kind: SurfaceKind.terminal.rawValue,
             isDirty: newPanel.isDirty,
@@ -7563,7 +7601,7 @@ final class Workspace: Identifiable, ObservableObject {
 
         // Create tab in bonsplit
         guard let newTabId = bonsplitController.createTab(
-            title: newPanel.displayTitle,
+            title: withColorDot(newPanel.displayTitle, panelId: newPanel.id),
             icon: newPanel.displayIcon,
             kind: SurfaceKind.terminal.rawValue,
             isDirty: newPanel.isDirty,
@@ -7672,7 +7710,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[newPanel.id] = title
 
         guard let newTabId = bonsplitController.createTab(
-            title: title,
+            title: withColorDot(title, panelId: newPanel.id),
             icon: "rectangle.connected.to.line.below",
             kind: SurfaceKind.terminal.rawValue,
             inPane: paneId
@@ -7754,8 +7792,9 @@ final class Workspace: Identifiable, ObservableObject {
     func updateRemoteTmuxTabTitle(panelId: UUID, title: String) {
         guard let tabId = surfaceIdFromPanelId(panelId) else { return }
         panelTitles[panelId] = title
-        guard let existing = bonsplitController.tab(tabId), existing.title != title else { return }
-        bonsplitController.updateTab(tabId, title: title, icon: nil, isDirty: nil)
+        let dottedTitle = withColorDot(title, panelId: panelId)
+        guard let existing = bonsplitController.tab(tabId), existing.title != dottedTitle else { return }
+        bonsplitController.updateTab(tabId, title: dottedTitle, icon: nil, isDirty: nil)
     }
 
     /// Replace the terminal process behind an existing surface while preserving its pane and tab identity.
@@ -7856,7 +7895,7 @@ final class Workspace: Identifiable, ObservableObject {
         bindSurface(tabId, toPanelId: panelId)
         seedTerminalInheritanceFontPoints(panelId: panelId, configTemplate: inheritedConfig)
 
-        let resolvedTitle = resolvedPanelTitle(panelId: panelId, fallback: replacementPanel.displayTitle)
+        let resolvedTitle = withColorDot(resolvedPanelTitle(panelId: panelId, fallback: replacementPanel.displayTitle), panelId: panelId)
         bonsplitController.updateTab(
             tabId,
             title: resolvedTitle,
@@ -7965,7 +8004,7 @@ final class Workspace: Identifiable, ObservableObject {
 
         // Pre-generate the bonsplit tab ID so the mapping exists before the split lands.
         let newTab = Bonsplit.Tab(
-            title: browserPanel.displayTitle,
+            title: withColorDot(browserPanel.displayTitle, panelId: browserPanel.id),
             icon: browserPanel.displayIcon,
             kind: SurfaceKind.browser.rawValue,
             isDirty: browserPanel.isDirty,
@@ -8073,7 +8112,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[browserPanel.id] = browserPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: browserPanel.displayTitle,
+            title: withColorDot(browserPanel.displayTitle, panelId: browserPanel.id),
             icon: browserPanel.displayIcon,
             kind: SurfaceKind.browser.rawValue,
             isDirty: browserPanel.isDirty,
@@ -8140,7 +8179,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[extensionBrowserPanel.id] = extensionBrowserPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: extensionBrowserPanel.displayTitle,
+            title: withColorDot(extensionBrowserPanel.displayTitle, panelId: extensionBrowserPanel.id),
             icon: extensionBrowserPanel.displayIcon,
             kind: SurfaceKind.extensionBrowser.rawValue,
             isDirty: false,
@@ -8230,7 +8269,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[markdownPanel.id] = markdownPanel.displayTitle
 
         let newTab = Bonsplit.Tab(
-            title: markdownPanel.displayTitle,
+            title: withColorDot(markdownPanel.displayTitle, panelId: markdownPanel.id),
             icon: markdownPanel.displayIcon,
             kind: SurfaceKind.markdown.rawValue,
             isDirty: markdownPanel.isDirty,
@@ -8285,7 +8324,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[markdownPanel.id] = markdownPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: markdownPanel.displayTitle,
+            title: withColorDot(markdownPanel.displayTitle, panelId: markdownPanel.id),
             icon: markdownPanel.displayIcon,
             kind: SurfaceKind.markdown.rawValue,
             isDirty: markdownPanel.isDirty,
@@ -8337,7 +8376,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[projectPanel.id] = projectPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: projectPanel.displayTitle,
+            title: withColorDot(projectPanel.displayTitle, panelId: projectPanel.id),
             icon: projectPanel.displayIcon,
             kind: SurfaceKind.project.rawValue,
             isDirty: false,
@@ -8403,7 +8442,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[markdownPanel.id] = markdownPanel.displayTitle
 
         let newTab = Bonsplit.Tab(
-            title: markdownPanel.displayTitle,
+            title: withColorDot(markdownPanel.displayTitle, panelId: markdownPanel.id),
             icon: markdownPanel.displayIcon,
             kind: SurfaceKind.markdown.rawValue,
             isDirty: markdownPanel.isDirty,
@@ -8495,7 +8534,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[filePreviewPanel.id] = filePreviewPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: filePreviewPanel.displayTitle,
+            title: withColorDot(filePreviewPanel.displayTitle, panelId: filePreviewPanel.id),
             icon: RenderableSystemSymbol.resolvedSurfaceTabIcon(filePreviewPanel.displayIcon),
             kind: SurfaceKind.filePreview.rawValue,
             isDirty: filePreviewPanel.isDirty,
@@ -8567,7 +8606,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[toolPanel.id] = toolPanel.displayTitle
 
         guard let newTabId = bonsplitController.createTab(
-            title: toolPanel.displayTitle,
+            title: withColorDot(toolPanel.displayTitle, panelId: toolPanel.id),
             icon: toolPanel.displayIcon,
             kind: SurfaceKind.rightSidebarTool.rawValue,
             isDirty: false,
@@ -8626,7 +8665,7 @@ final class Workspace: Identifiable, ObservableObject {
         }
 
         guard let newTabId = bonsplitController.createTab(
-            title: agentPanel.displayTitle,
+            title: withColorDot(agentPanel.displayTitle, panelId: agentPanel.id),
             icon: agentPanel.displayIcon,
             kind: SurfaceKind.agentSession.rawValue,
             isDirty: agentPanel.isDirty,
@@ -8681,7 +8720,7 @@ final class Workspace: Identifiable, ObservableObject {
         panelTitles[filePreviewPanel.id] = filePreviewPanel.displayTitle
 
         let newTab = Bonsplit.Tab(
-            title: filePreviewPanel.displayTitle,
+            title: withColorDot(filePreviewPanel.displayTitle, panelId: filePreviewPanel.id),
             icon: RenderableSystemSymbol.resolvedSurfaceTabIcon(filePreviewPanel.displayIcon),
             kind: SurfaceKind.filePreview.rawValue,
             isDirty: filePreviewPanel.isDirty,
@@ -10076,7 +10115,7 @@ final class Workspace: Identifiable, ObservableObject {
 
         // Create tab in bonsplit
         if let newTabId = bonsplitController.createTab(
-            title: newPanel.displayTitle,
+            title: withColorDot(newPanel.displayTitle, panelId: newPanel.id),
             icon: newPanel.displayIcon,
             kind: SurfaceKind.terminal.rawValue,
             isDirty: newPanel.isDirty,
@@ -11178,7 +11217,7 @@ final class Workspace: Identifiable, ObservableObject {
         seedTerminalInheritanceFontPoints(panelId: newPanel.id, configTemplate: inheritedConfig)
 
         let newTab = Bonsplit.Tab(
-            title: newPanel.displayTitle,
+            title: withColorDot(newPanel.displayTitle, panelId: newPanel.id),
             icon: newPanel.displayIcon,
             kind: SurfaceKind.terminal.rawValue,
             isDirty: newPanel.isDirty,
@@ -12648,7 +12687,7 @@ extension Workspace: BonsplitDelegate {
 
                     bonsplitController.updateTab(
                         replacementTab.id,
-                        title: replacementPanel.displayTitle,
+                        title: withColorDot(replacementPanel.displayTitle, panelId: replacementPanel.id),
                         icon: .some(replacementPanel.displayIcon),
                         iconImageData: .some(nil),
                         kind: .some(SurfaceKind.terminal.rawValue),
@@ -12715,7 +12754,7 @@ extension Workspace: BonsplitDelegate {
         seedTerminalInheritanceFontPoints(panelId: newPanel.id, configTemplate: inheritedConfig)
 
         guard let newTabId = bonsplitController.createTab(
-            title: newPanel.displayTitle,
+            title: withColorDot(newPanel.displayTitle, panelId: newPanel.id),
             icon: newPanel.displayIcon,
             kind: SurfaceKind.terminal.rawValue,
             isDirty: newPanel.isDirty,
