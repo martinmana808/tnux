@@ -2462,19 +2462,18 @@ final class Workspace: Identifiable, ObservableObject {
         return dot
     }
 
-    /// Last two path components of `path`, e.g. "/Users/x/Documents/Projects/cmux"
-    /// -> "Projects/cmux". Returns nil for an empty/root path.
-    private func lastTwoPathSegments(_ path: String) -> String? {
-        let components = path.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// Last path component of `path`, e.g. "/Users/x/Documents/Projects/cmux"
+    /// -> "cmux". Returns nil for an empty/root path.
+    private func lastPathSegment(_ path: String) -> String? {
+        path.trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: "/")
             .map(String.init)
-        guard !components.isEmpty else { return nil }
-        return components.suffix(2).joined(separator: "/")
+            .last
     }
 
     private func withColorDot(_ title: String, panelId: UUID) -> String {
         let dot = colorDot(forPanelId: panelId)
-        guard let directory = panelDirectories[panelId], let folder = lastTwoPathSegments(directory) else {
+        guard let directory = panelDirectories[panelId], let folder = lastPathSegment(directory) else {
             return "\(dot) \(title)"
         }
         return "\(dot) \(folder) — \(title)"
