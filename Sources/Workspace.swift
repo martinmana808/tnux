@@ -2466,7 +2466,12 @@ final class Workspace: Identifiable, ObservableObject {
         let index = Self.nextColorDotIndex
         Self.nextColorDotIndex += 1
         let hue = (Double(index) * Self.goldenRatioConjugate).truncatingRemainder(dividingBy: 1.0)
-        let color = NSColor(calibratedHue: hue, saturation: 0.65, brightness: 0.92, alpha: 1)
+        // Kept light/pastel (low saturation, high brightness) so black text
+        // always reads well on top of it, regardless of hue. Tuned so even
+        // the worst case (pure blue, which reads darkest to the eye at a
+        // given brightness/saturation) stays comfortably above the contrast
+        // threshold for black text.
+        let color = NSColor(calibratedHue: hue, saturation: 0.28, brightness: 0.98, alpha: 1)
         let hex = String(
             format: "%02X%02X%02X",
             Int((color.redComponent * 255).rounded()),
