@@ -26,6 +26,10 @@ public protocol TerminalSurfaceNativeViewing: NSView, TerminalSurfaceHosting {
     @discardableResult
     func toggleKeyboardCopyMode() -> Bool
 
+    /// Re-applies this surface's own pane backdrop (theme background, pane
+    /// tint, or an OSC-set override, whichever currently applies).
+    func applySurfaceBackground()
+
     /// Re-applies the window background for the active surface.
     func applyWindowBackgroundIfActive()
 

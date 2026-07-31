@@ -61,6 +61,14 @@ public final class TerminalSurface: Identifiable, ObservableObject {
     /// The live runtime surface pointer, or nil before creation/after teardown.
     public internal(set) var surface: ghostty_surface_t?
     weak var attachedView: (any TerminalSurfaceNativeViewing)?
+
+    /// The pane identity color this surface's backdrop is tinted with, or nil
+    /// for the theme's untinted background. Owned by the workspace (which
+    /// assigns one color per panel) and stored here rather than on the view so
+    /// it survives detach/reattach and follows the surface between panes.
+    ///
+    /// Write through ``setPaneTintColor(_:)`` so the attached view repaints.
+    public internal(set) var paneTintColor: NSColor?
     // MARK: Injected collaborators (see TerminalSurfaceRuntimeDependencies)
     let registry: any TerminalSurfaceRegistering
     let engine: any TerminalEngineHosting

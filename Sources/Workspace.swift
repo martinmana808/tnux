@@ -2457,12 +2457,14 @@ final class Workspace: Identifiable, ObservableObject {
     /// ratio conjugate so consecutive tabs stay maximally separated in color
     /// even across dozens of open tabs, unlike a small fixed emoji palette
     /// that starts repeating after ~7 tabs.
-    private var panelColorHexes: [UUID: String] = [:]
+    private var panelColors: [UUID: NSColor] = [:]
     private static var nextColorDotIndex = 0
     private static let goldenRatioConjugate = 0.618033988749895
 
-    private func colorDotHex(forPanelId panelId: UUID) -> String {
-        if let existing = panelColorHexes[panelId] { return existing }
+    /// The identity color assigned to `panelId`, minting the next one on the
+    /// hue wheel the first time a panel asks for it.
+    private func panelColor(forPanelId panelId: UUID) -> NSColor {
+        if let existing = panelColors[panelId] { return existing }
         let index = Self.nextColorDotIndex
         Self.nextColorDotIndex += 1
         let hue = (Double(index) * Self.goldenRatioConjugate).truncatingRemainder(dividingBy: 1.0)
@@ -2472,14 +2474,26 @@ final class Workspace: Identifiable, ObservableObject {
         // given brightness/saturation) stays comfortably above the contrast
         // threshold for black text.
         let color = NSColor(calibratedHue: hue, saturation: 0.28, brightness: 0.98, alpha: 1)
-        let hex = String(
+        panelColors[panelId] = color
+        return color
+    }
+
+    private func colorDotHex(forPanelId panelId: UUID) -> String {
+        let color = panelColor(forPanelId: panelId)
+        return String(
             format: "%02X%02X%02X",
             Int((color.redComponent * 255).rounded()),
             Int((color.greenComponent * 255).rounded()),
             Int((color.blueComponent * 255).rounded())
         )
-        panelColorHexes[panelId] = hex
-        return hex
+    }
+
+    /// Mirrors a terminal panel's identity color onto its surface, which blends
+    /// it into the theme background to tint that pane's backdrop. Idempotent:
+    /// the surface ignores a write that matches the color it already carries.
+    private func applyPaneTint(panelId: UUID) {
+        guard let surface = terminalPanel(for: panelId)?.surface else { return }
+        surface.setPaneTintColor(panelColor(forPanelId: panelId))
     }
 
     /// Last path component of `path`, e.g. "/Users/x/Documents/Projects/cmux"
@@ -2492,6 +2506,7 @@ final class Workspace: Identifiable, ObservableObject {
     }
 
     private func withColorDot(_ title: String, panelId: UUID) -> String {
+        applyPaneTint(panelId: panelId)
         let marker = "\u{2}\(colorDotHex(forPanelId: panelId))\u{2}"
         guard let directory = panelDirectories[panelId], let folder = lastPathSegment(directory) else {
             return "\(marker) \(title)"

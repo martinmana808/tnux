@@ -3658,6 +3658,21 @@ class GhosttyNSView: NSView, NSUserInterfaceValidations {
         addSubview(keyboardCopyModeCursorOverlayView, positioned: .above, relativeTo: nil)
     }
 
+    /// This pane's identity-tinted backdrop, or nil when its surface has no
+    /// assigned pane color. Recomputed per call so it tracks theme changes:
+    /// the tint is a blend of the *current* default background with the pane's
+    /// color, not a value frozen when the color was assigned.
+    ///
+    /// Ranks below `backgroundColor`, so a terminal that sets its own
+    /// background via OSC 11 still wins over the pane tint.
+    private var tintedPaneBackgroundColor: NSColor? {
+        guard let paneTintColor = terminalSurface?.paneTintColor else { return nil }
+        return TerminalSurfacePaneTint.tinted(
+            GhosttyApp.shared.defaultBackgroundColor,
+            with: paneTintColor
+        )
+    }
+
     func applySurfaceBackground() {
         let renderingMode = WindowAppearanceSnapshot.terminalRenderingMode(
             usesHostLayerBackground: GhosttyApp.shared.usesHostLayerBackground
@@ -3669,7 +3684,7 @@ class GhosttyNSView: NSView, NSUserInterfaceValidations {
         )
         let fillPlan = TerminalSurfaceBackgroundFillPlan.resolve(
             renderingMode: renderingMode,
-            surfaceBackgroundColor: backgroundColor,
+            surfaceBackgroundColor: backgroundColor ?? tintedPaneBackgroundColor,
             defaultBackgroundColor: GhosttyApp.shared.defaultBackgroundColor,
             backgroundOpacity: GhosttyApp.shared.defaultBackgroundOpacity,
             sharesWindowBackdrop: sharesWindowBackdrop,
