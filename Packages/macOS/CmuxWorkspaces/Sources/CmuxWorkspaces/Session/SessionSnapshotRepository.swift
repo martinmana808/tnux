@@ -27,6 +27,8 @@ public struct SessionSnapshotRepository<SnapshotValue: SessionSnapshotRepresenti
     // the shared FileManager object can be called from multiple threads
     // safely") but Foundation does not mark it Sendable.
     private nonisolated(unsafe) let fileManager: FileManager
+    private let backupPolicy: SessionSnapshotBackupPolicy
+    private let now: @Sendable () -> Date
 
     /// Creates a repository.
     ///
@@ -40,16 +42,23 @@ public struct SessionSnapshotRepository<SnapshotValue: SessionSnapshotRepresenti
     ///   - appSupportDirectory: Overrides the discovered user Application
     ///     Support directory (tests pass a temporary directory).
     ///   - fileManager: File system access, injected for testability.
+    ///   - backupPolicy: Cadence and retention for rolling snapshot backups.
+    ///   - now: Clock used to stamp and prune backups (tests inject a fixed
+    ///     or advancing clock).
     public init(
         schemaVersion: Int,
         bundleIdentifier: String?,
         appSupportDirectory: URL? = nil,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        backupPolicy: SessionSnapshotBackupPolicy = .default,
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.schemaVersion = schemaVersion
         self.bundleIdentifier = bundleIdentifier
         self.appSupportDirectory = appSupportDirectory
         self.fileManager = fileManager
+        self.backupPolicy = backupPolicy
+        self.now = now
     }
 
     public func loadOutcome(fileURL: URL) -> SessionSnapshotLoadOutcome<SnapshotValue> {
@@ -79,11 +88,85 @@ public struct SessionSnapshotRepository<SnapshotValue: SessionSnapshotRepresenti
                 return true
             }
             try data.write(to: fileURL, options: .atomic)
+            if isPrimarySnapshotFileURL(fileURL) {
+                recordBackupIfDue(data: data)
+            }
             return true
         } catch {
             return false
         }
     }
+
+    // MARK: - Rolling backups
+
+    /// Directory holding rolling backups of the primary snapshot for this
+    /// bundle identifier, or nil when Application Support cannot be resolved.
+    public func sessionBackupsDirectoryURL() -> URL? {
+        guard let primary = defaultSnapshotFileURL() else { return nil }
+        return primary
+            .deletingLastPathComponent()
+            .appendingPathComponent("session-backups", isDirectory: true)
+            .appendingPathComponent(sanitizedBundleIdentifier, isDirectory: true)
+    }
+
+    /// Rolling backups on disk, newest first.
+    public func listSessionBackups() -> [SessionSnapshotBackup] {
+        guard let directory = sessionBackupsDirectoryURL(),
+              let contents = try? fileManager.contentsOfDirectory(
+                  at: directory,
+                  includingPropertiesForKeys: nil,
+                  options: [.skipsHiddenFiles]
+              ) else {
+            return []
+        }
+        return contents
+            .compactMap { url -> SessionSnapshotBackup? in
+                guard url.pathExtension == "json",
+                      let recordedAt = SessionSnapshotBackupFileName.date(from: url.deletingPathExtension().lastPathComponent) else {
+                    return nil
+                }
+                return SessionSnapshotBackup(fileURL: url, recordedAt: recordedAt)
+            }
+            .sorted { $0.recordedAt > $1.recordedAt }
+    }
+
+    private func isPrimarySnapshotFileURL(_ fileURL: URL) -> Bool {
+        guard let primary = defaultSnapshotFileURL() else { return false }
+        return primary.standardizedFileURL.path == fileURL.standardizedFileURL.path
+    }
+
+    /// Writes `data` as a new backup when the newest backup is older than the
+    /// policy's minimum interval (or none exists), then prunes per the policy.
+    /// Failures are swallowed: backups must never make the primary save fail.
+    private func recordBackupIfDue(data: Data) {
+        guard let directory = sessionBackupsDirectoryURL() else { return }
+        let currentDate = now()
+        let existing = listSessionBackups()
+        if let newest = existing.first,
+           currentDate.timeIntervalSince(newest.recordedAt) < backupPolicy.minimumInterval {
+            return
+        }
+        do {
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+            let fileURL = directory.appendingPathComponent(
+                SessionSnapshotBackupFileName.string(for: currentDate) + ".json",
+                isDirectory: false
+            )
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            return
+        }
+        pruneBackups(now: currentDate)
+    }
+
+    private func pruneBackups(now currentDate: Date) {
+        let backups = listSessionBackups()
+        let retained = backupPolicy.retainedDates(from: backups.map(\.recordedAt), now: currentDate)
+        for backup in backups where !retained.contains(backup.recordedAt) {
+            try? fileManager.removeItem(at: backup.fileURL)
+        }
+    }
+
 
     private func encodedSnapshotData(_ snapshot: SnapshotValue) throws -> Data {
         let encoder = JSONEncoder()
@@ -155,16 +238,19 @@ public struct SessionSnapshotRepository<SnapshotValue: SessionSnapshotRepresenti
         } else {
             return nil
         }
+        return resolvedAppSupport
+            .appendingPathComponent("cmux", isDirectory: true)
+            .appendingPathComponent("session-\(sanitizedBundleIdentifier)\(suffix).json", isDirectory: false)
+    }
+
+    private var sanitizedBundleIdentifier: String {
         let bundleId = (bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
             ? bundleIdentifier!
             : "com.cmuxterm.app"
-        let safeBundleId = bundleId.replacingOccurrences(
+        return bundleId.replacingOccurrences(
             of: "[^A-Za-z0-9._-]",
             with: "_",
             options: .regularExpression
         )
-        return resolvedAppSupport
-            .appendingPathComponent("cmux", isDirectory: true)
-            .appendingPathComponent("session-\(safeBundleId)\(suffix).json", isDirectory: false)
     }
 }

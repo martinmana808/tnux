@@ -49,4 +49,13 @@ public protocol SessionSnapshotStoring<SnapshotValue>: Sendable {
     /// Location of the manual-restore backup snapshot file, or nil when
     /// Application Support cannot be resolved.
     func manualRestoreSnapshotFileURL() -> URL?
+
+    /// Directory holding rolling, timestamped backups of the primary
+    /// snapshot, or nil when Application Support cannot be resolved.
+    func sessionBackupsDirectoryURL() -> URL?
+
+    /// Rolling backups on disk, newest first. Backups are recorded
+    /// automatically by `save` on the primary path per the store's
+    /// ``SessionSnapshotBackupPolicy``.
+    func listSessionBackups() -> [SessionSnapshotBackup]
 }

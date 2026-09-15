@@ -47,6 +47,10 @@ extension cmuxApp {
                     NSSound.beep()
                 }
             }
+
+            Button(String(localized: "menu.file.restoreLayoutFromBackup", defaultValue: "Restore Layout From Backup…")) {
+                _ = AppDelegate.shared?.restoreLayoutFromBackup()
+            }
         }
     }
 

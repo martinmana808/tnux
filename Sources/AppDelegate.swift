@@ -3410,6 +3410,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         return restorePreviousSessionSnapshot(snapshot, shouldActivate: shouldActivate)
     }
 
+    /// Lets the user pick one of the rolling session backups (recorded
+    /// automatically by the autosave path) and restores it the same way
+    /// "Restore Previous Launch" does: the backup's windows open alongside
+    /// the current ones.
+    @discardableResult
+    func restoreLayoutFromBackup() -> Bool {
+        guard let directory = sessionSnapshotStore.sessionBackupsDirectoryURL() else { return false }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.json]
+        panel.directoryURL = directory
+        panel.message = String(
+            localized: "session.backupRestore.openPanel.message",
+            defaultValue: "Choose a layout backup to restore"
+        )
+        guard panel.runModal() == .OK, let fileURL = panel.url else { return false }
+        return restoreLayoutFromBackupFile(at: fileURL)
+    }
+
+    /// Restores the session snapshot stored at `fileURL`. Shared by the menu
+    /// flow and any automation that already knows which backup to use.
+    @discardableResult
+    func restoreLayoutFromBackupFile(at fileURL: URL, shouldActivate: Bool = true) -> Bool {
+        guard case .loaded(let snapshot) = sessionSnapshotStore.loadOutcome(fileURL: fileURL),
+              restorePreviousSessionSnapshot(snapshot, shouldActivate: shouldActivate) else {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = String(
+                localized: "session.backupRestore.failed.title",
+                defaultValue: "Couldn't Restore Layout"
+            )
+            alert.informativeText = String(
+                localized: "session.backupRestore.failed.message",
+                defaultValue: "The selected backup could not be read or contains no windows."
+            )
+            alert.runModal()
+            return false
+        }
+        return true
+    }
+
     @discardableResult
     func restorePreviousSessionSnapshot(
         _ snapshot: AppSessionSnapshot,
@@ -13648,6 +13692,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #if DEBUG
             recordGotoSplitMoveIfNeeded(direction: .down)
 #endif
+            return true
+        }
+
+        // Pane cycling (defaults to Ctrl+Shift+Option+Arrow): next/previous pane in
+        // layout order with wrap-around. Unlike directional focus it keeps working
+        // while a pane is zoomed, moving the zoom to the newly focused pane.
+        if matchConfiguredDirectionalShortcut(
+            event: event,
+            action: .focusNextPane,
+            arrowGlyph: "→",
+            arrowKeyCode: 124
+        ) {
+            let routedTabs = preferredMainWindowContextForShortcutRouting(event: event)?.tabManager ?? tabManager
+            cmuxRememberFindSelectionBeforePanelFocusMove(tabManager: routedTabs, window: shortcutRoutingKeyWindow)
+            routedTabs?.cyclePaneFocus(forward: true)
+            return true
+        }
+        if matchConfiguredDirectionalShortcut(
+            event: event,
+            action: .focusPreviousPane,
+            arrowGlyph: "←",
+            arrowKeyCode: 123
+        ) {
+            let routedTabs = preferredMainWindowContextForShortcutRouting(event: event)?.tabManager ?? tabManager
+            cmuxRememberFindSelectionBeforePanelFocusMove(tabManager: routedTabs, window: shortcutRoutingKeyWindow)
+            routedTabs?.cyclePaneFocus(forward: false)
             return true
         }
 
