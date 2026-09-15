@@ -155,7 +155,7 @@ extension TerminalController: ControlSystemContext {
                 selectedInPane: selectedInPaneByPanelId[panel.id],
                 paneID: paneUUID,
                 indexInPane: indexInPaneByPanelId[panel.id],
-                tty: workspace.surfaceTTYNames[panel.id],
+                tty: workspace.liveSurfaceTTYName(panelId: panel.id),
                 isBrowser: isBrowser,
                 url: url
             )

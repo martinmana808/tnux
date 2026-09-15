@@ -448,7 +448,7 @@ extension Workspace {
         } else {
             listeningPorts = (surfaceListeningPorts[panelId] ?? []).sorted()
         }
-        let ttyName = surfaceTTYNames[panelId]
+        let ttyName = liveSurfaceTTYName(panelId: panelId)
         let terminalSnapshot: SessionTerminalPanelSnapshot?
         let browserSnapshot: SessionBrowserPanelSnapshot?
         let markdownSnapshot: SessionMarkdownPanelSnapshot?
@@ -1606,7 +1606,17 @@ extension Workspace {
 
         surfaceListeningPorts[panelId] = Array(Set(snapshot.listeningPorts)).sorted()
 
-        if let ttyName = snapshot.ttyName?.trimmingCharacters(in: .whitespacesAndNewlines), !ttyName.isEmpty {
+        // A local pty does not survive an app relaunch, so a persisted tty name
+        // describes a device this pane no longer owns. Re-applying it cross-wires
+        // every tty-keyed consumer (claude-hook routing, `debug.terminals`,
+        // `system.top`, the port scanner) to whichever pane the kernel handed
+        // that tty to after relaunch. Remote PTYs can outlive the app, so only
+        // remote terminals keep the persisted name; local panes rely on
+        // `liveSurfaceTTYName(panelId:)` and shell-integration reports.
+        let persistedTTYNameIsAuthoritative = isRemoteWorkspace || snapshot.terminal?.isRemoteTerminal == true
+        if persistedTTYNameIsAuthoritative,
+           let ttyName = snapshot.ttyName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !ttyName.isEmpty {
             surfaceTTYNames[panelId] = ttyName
         } else {
             surfaceTTYNames.removeValue(forKey: panelId)
@@ -12330,7 +12340,7 @@ extension Workspace: BonsplitDelegate {
                 isPinned: pinnedPanelIds.contains(panelId),
                 directory: panelDirectories[panelId],
                 directoryDisplayLabel: panelDirectoryDisplayLabels[panelId],
-                ttyName: surfaceTTYNames[panelId],
+                ttyName: liveSurfaceTTYName(panelId: panelId),
                 cachedTitle: cachedTitle,
                 customTitle: panelCustomTitles[panelId],
                 customTitleSource: panelCustomTitles[panelId] != nil

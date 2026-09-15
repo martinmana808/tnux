@@ -507,7 +507,7 @@ extension TerminalSurface {
         if let target = AppDelegate.shared?.remoteTmuxController.remoteUploadTarget(forSurfaceId: id) {
             return .remote(target)
         }
-        if let ttyName = workspace.surfaceTTYNames[id],
+        if let ttyName = workspace.liveSurfaceTTYName(panelId: id),
            let session = TerminalSSHSessionDetector.detect(forTTY: ttyName) {
             return .remote(.detectedSSH(session))
         }

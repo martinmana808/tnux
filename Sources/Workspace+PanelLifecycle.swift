@@ -475,3 +475,58 @@ extension Workspace {
         return transferredRemoteCleanupConfiguration
     }
 }
+
+// MARK: - Live surface tty resolution
+
+extension Workspace {
+    /// Resolves the controlling tty name for a panel.
+    ///
+    /// For local terminal panels the live pty (via Ghostty) is authoritative:
+    /// restored panes that run a launcher script never load shell integration,
+    /// so they never report their tty, and a cached name can be stale or
+    /// belong to another pane. When the live name is available it replaces the
+    /// cached entry so every tty-keyed consumer (`debug.terminals`, `system.top`,
+    /// claude-hook routing, the port scanner) sees the same value. Remote
+    /// terminals and panels without a live pty fall back to the cached name.
+    ///
+    @discardableResult
+    func liveSurfaceTTYName(panelId: UUID) -> String? {
+        liveSurfaceTTYName(panelId: panelId, liveTTYNameProvider: { $0.surface.controllingTTYName() })
+    }
+
+    /// Test seam for ``liveSurfaceTTYName(panelId:)``: `liveTTYNameProvider`
+    /// stands in for Ghostty's pty name lookup.
+    @discardableResult
+    func liveSurfaceTTYName(
+        panelId: UUID,
+        liveTTYNameProvider: (TerminalPanel) -> String?
+    ) -> String? {
+        let cached = surfaceTTYNames[panelId]
+        guard !isRemoteWorkspace,
+              !isRemoteTerminalSurface(panelId),
+              let terminalPanel = terminalPanel(for: panelId),
+              let live = Self.normalizedTTYName(liveTTYNameProvider(terminalPanel)) else {
+            return cached
+        }
+        if live != cached {
+            surfaceTTYNames[panelId] = live
+            PortScanner.shared.registerTTY(workspaceId: id, panelId: panelId, ttyName: live)
+        }
+        return live
+    }
+
+    /// Normalizes `/dev/ttys012` or `ttys012` to the `ttys012` form used by
+    /// shell-integration reports and the socket API.
+    nonisolated static func normalizedTTYName(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              trimmed != "not a tty" else {
+            return nil
+        }
+        if trimmed.hasPrefix("/dev/") {
+            let name = String(trimmed.dropFirst("/dev/".count))
+            return name.isEmpty ? nil : name
+        }
+        return trimmed
+    }
+}

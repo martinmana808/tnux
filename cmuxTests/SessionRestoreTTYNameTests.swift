@@ -119,4 +119,35 @@ struct SessionRestoreTTYNameTests {
 
         #expect(restored.surfaceTTYNames[restoredPanelId] == "pts/7")
     }
+
+    @MainActor
+    @Test("live pty tty replaces a stale cached tty name")
+    func livePTYTTYNameReplacesStaleCachedName() throws {
+        let workspace = Workspace(workingDirectory: "/tmp")
+        let panel = try #require(workspace.focusedTerminalPanel)
+        workspace.surfaceTTYNames[panel.id] = "ttys001"
+
+        let resolved = workspace.liveSurfaceTTYName(
+            panelId: panel.id,
+            liveTTYNameProvider: { _ in "/dev/ttys042" }
+        )
+
+        #expect(resolved == "ttys042")
+        #expect(workspace.surfaceTTYNames[panel.id] == "ttys042")
+    }
+
+    @MainActor
+    @Test("cached tty name is used when the live pty is unavailable")
+    func cachedTTYNameIsUsedWhenLivePTYIsUnavailable() throws {
+        let workspace = Workspace(workingDirectory: "/tmp")
+        let panel = try #require(workspace.focusedTerminalPanel)
+        workspace.surfaceTTYNames[panel.id] = "ttys007"
+
+        let resolved = workspace.liveSurfaceTTYName(
+            panelId: panel.id,
+            liveTTYNameProvider: { _ in nil }
+        )
+
+        #expect(resolved == "ttys007")
+    }
 }
