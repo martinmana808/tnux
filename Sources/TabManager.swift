@@ -3726,6 +3726,15 @@ class TabManager: ObservableObject {
         tab.moveFocus(direction: direction)
     }
 
+    /// Focus the next (or previous) pane of the selected workspace in layout
+    /// order, wrapping at the ends. A zoomed pane hands the zoom to the target.
+    @discardableResult
+    func cyclePaneFocus(forward: Bool) -> Bool {
+        guard let selectedTabId,
+              let tab = tabs.first(where: { $0.id == selectedTabId }) else { return false }
+        return tab.focusAdjacentPane(offset: forward ? 1 : -1)
+    }
+
     // MARK: - Focus History Navigation (CmuxWorkspaceNavigation)
 
     // The back/forward stack, suppression depth, and navigation logic live

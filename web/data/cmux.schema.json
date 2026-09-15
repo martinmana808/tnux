@@ -1392,6 +1392,8 @@
               "focusRight",
               "focusUp",
               "focusDown",
+              "focusNextPane",
+              "focusPreviousPane",
               "splitRight",
               "splitDown",
               "toggleSplitZoom",

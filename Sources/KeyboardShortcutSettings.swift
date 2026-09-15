@@ -125,6 +125,8 @@ enum KeyboardShortcutSettings {
         case focusRight
         case focusUp
         case focusDown
+        case focusNextPane
+        case focusPreviousPane
         case splitRight
         case splitDown, toggleSplitZoom
         case equalizeSplits
@@ -247,6 +249,8 @@ enum KeyboardShortcutSettings {
             case .focusRight: return String(localized: "shortcut.focusPaneRight.label", defaultValue: "Focus Pane Right")
             case .focusUp: return String(localized: "shortcut.focusPaneUp.label", defaultValue: "Focus Pane Up")
             case .focusDown: return String(localized: "shortcut.focusPaneDown.label", defaultValue: "Focus Pane Down")
+            case .focusNextPane: return String(localized: "shortcut.focusNextPane.label", defaultValue: "Focus Next Pane")
+            case .focusPreviousPane: return String(localized: "shortcut.focusPreviousPane.label", defaultValue: "Focus Previous Pane")
             case .splitRight: return String(localized: "shortcut.splitRight.label", defaultValue: "Split Right")
             case .splitDown: return String(localized: "shortcut.splitDown.label", defaultValue: "Split Down")
             case .toggleSplitZoom: return String(localized: "shortcut.togglePaneZoom.label", defaultValue: "Toggle Pane Zoom")
@@ -431,6 +435,12 @@ enum KeyboardShortcutSettings {
                 return StoredShortcut(key: "↑", command: true, shift: false, option: true, control: false)
             case .focusDown:
                 return StoredShortcut(key: "↓", command: true, shift: false, option: true, control: false)
+            case .focusNextPane:
+                // Ctrl+Shift+Option+Arrow: cycles panes in layout order and carries an
+                // active pane zoom along, so it works while a pane fills the window.
+                return StoredShortcut(key: "→", command: false, shift: true, option: true, control: true)
+            case .focusPreviousPane:
+                return StoredShortcut(key: "←", command: false, shift: true, option: true, control: true)
             case .splitRight:
                 return StoredShortcut(key: "d", command: true, shift: false, option: false, control: false)
             case .splitDown: return StoredShortcut(key: "d", command: true, shift: true, option: false, control: false)
@@ -1101,6 +1111,8 @@ enum KeyboardShortcutSettings {
     static func focusRightShortcut() -> StoredShortcut { shortcut(for: .focusRight) }
     static func focusUpShortcut() -> StoredShortcut { shortcut(for: .focusUp) }
     static func focusDownShortcut() -> StoredShortcut { shortcut(for: .focusDown) }
+    static func focusNextPaneShortcut() -> StoredShortcut { shortcut(for: .focusNextPane) }
+    static func focusPreviousPaneShortcut() -> StoredShortcut { shortcut(for: .focusPreviousPane) }
 
     static func splitRightShortcut() -> StoredShortcut { shortcut(for: .splitRight) }
     static func splitDownShortcut() -> StoredShortcut { shortcut(for: .splitDown) }

@@ -530,3 +530,55 @@ extension Workspace {
         return trimmed
     }
 }
+
+// MARK: - Pane cycling
+
+extension Workspace {
+    /// Focuses the pane `offset` steps away from the focused pane in layout
+    /// order (bonsplit tree order, or Canvas order in Canvas layout), wrapping
+    /// at both ends. When a pane is zoomed the zoom follows the focus so the
+    /// shortcut works while one pane fills the window.
+    ///
+    /// Returns false when there is nothing to cycle to (a single pane).
+    @discardableResult
+    func focusAdjacentPane(offset: Int) -> Bool {
+        guard offset != 0 else { return false }
+        if layoutMode == .canvas {
+            let ordered = orderedPanelIds
+            guard ordered.count > 1 else { return false }
+            let currentIndex = focusedPanelId.flatMap { ordered.firstIndex(of: $0) } ?? 0
+            let target = ordered[Self.wrappedIndex(currentIndex + offset, count: ordered.count)]
+            focusPanel(target)
+            return true
+        }
+
+        let panes = bonsplitController.allPaneIds
+        guard panes.count > 1 else { return false }
+        let currentPaneId = bonsplitController.zoomedPaneId ?? bonsplitController.focusedPaneId
+        let currentIndex = currentPaneId.flatMap { panes.firstIndex(of: $0) } ?? 0
+        let targetPaneId = panes[Self.wrappedIndex(currentIndex + offset, count: panes.count)]
+        guard targetPaneId != currentPaneId else { return false }
+
+        let wasZoomed = bonsplitController.isSplitZoomed
+        if let previousFocusedPanelId = focusedPanelId, let previous = panels[previousFocusedPanelId] {
+            previous.unfocus()
+        }
+        if wasZoomed {
+            _ = bonsplitController.clearPaneZoom()
+        }
+        bonsplitController.focusPane(targetPaneId)
+        if wasZoomed {
+            _ = bonsplitController.togglePaneZoom(inPane: targetPaneId)
+        }
+        if let tabId = bonsplitController.selectedTab(inPane: targetPaneId)?.id {
+            applyTabSelection(tabId: tabId, inPane: targetPaneId)
+        }
+        return true
+    }
+
+    nonisolated static func wrappedIndex(_ index: Int, count: Int) -> Int {
+        precondition(count > 0)
+        let remainder = index % count
+        return remainder < 0 ? remainder + count : remainder
+    }
+}

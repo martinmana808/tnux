@@ -10336,6 +10336,10 @@ class TerminalController {
             action = .focusUp
         case "focus_down", "focusdown":
             action = .focusDown
+        case "focus_next_pane", "focusnextpane":
+            action = .focusNextPane
+        case "focus_prev_pane", "focus_previous_pane", "focusprevpane", "focuspreviouspane":
+            action = .focusPreviousPane
         case "split_right", "splitright":
             action = .splitRight
         case "split_down", "splitdown":

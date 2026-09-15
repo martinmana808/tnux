@@ -7448,6 +7448,24 @@ struct ContentView: View {
         )
         contributions.append(
             CommandPaletteCommandContribution(
+                commandId: "palette.focusNextPane",
+                title: constant(String(localized: "command.focusNextPane.title", defaultValue: "Focus Next Pane")),
+                subtitle: constant(String(localized: "command.focusNextPane.subtitle", defaultValue: "Terminal Layout")),
+                keywords: ["pane", "next", "cycle", "focus", "zoom", "split"],
+                when: { $0.bool(CommandPaletteContextKeys.workspaceHasSplits) }
+            )
+        )
+        contributions.append(
+            CommandPaletteCommandContribution(
+                commandId: "palette.focusPreviousPane",
+                title: constant(String(localized: "command.focusPreviousPane.title", defaultValue: "Focus Previous Pane")),
+                subtitle: constant(String(localized: "command.focusPreviousPane.subtitle", defaultValue: "Terminal Layout")),
+                keywords: ["pane", "previous", "cycle", "focus", "zoom", "split"],
+                when: { $0.bool(CommandPaletteContextKeys.workspaceHasSplits) }
+            )
+        )
+        contributions.append(
+            CommandPaletteCommandContribution(
                 commandId: "palette.equalizeSplits",
                 title: constant(String(localized: "command.equalizeSplits.title", defaultValue: "Equalize Splits")),
                 subtitle: workspaceSubtitle,
@@ -8127,6 +8145,16 @@ struct ContentView: View {
         }
         registry.register(commandId: "palette.toggleSplitZoom") {
             if !tabManager.toggleFocusedSplitZoom() {
+                NSSound.beep()
+            }
+        }
+        registry.register(commandId: "palette.focusNextPane") {
+            if !tabManager.cyclePaneFocus(forward: true) {
+                NSSound.beep()
+            }
+        }
+        registry.register(commandId: "palette.focusPreviousPane") {
+            if !tabManager.cyclePaneFocus(forward: false) {
                 NSSound.beep()
             }
         }

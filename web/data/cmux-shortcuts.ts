@@ -280,6 +280,18 @@ export const shortcutCategories: ShortcutCategory[] = [
       { id: "focusRight", combos: [["⌥", "⌘", "→"]], description: { en: "Focus pane right", ja: "右のペインにフォーカス" } },
       { id: "focusUp", combos: [["⌥", "⌘", "↑"]], description: { en: "Focus pane up", ja: "上のペインにフォーカス" } },
       { id: "focusDown", combos: [["⌥", "⌘", "↓"]], description: { en: "Focus pane down", ja: "下のペインにフォーカス" } },
+      {
+        id: "focusNextPane",
+        combos: [["⌃", "⌥", "⇧", "→"]],
+        description: { en: "Focus next pane", ja: "次のペインにフォーカス" },
+        note: { en: "cycles in layout order; a zoomed pane hands the zoom to the target", ja: "レイアウト順に巡回。ズーム中はズームが移動先のペインに引き継がれます" },
+      },
+      {
+        id: "focusPreviousPane",
+        combos: [["⌃", "⌥", "⇧", "←"]],
+        description: { en: "Focus previous pane", ja: "前のペインにフォーカス" },
+        note: { en: "cycles in layout order; a zoomed pane hands the zoom to the target", ja: "レイアウト順に巡回。ズーム中はズームが移動先のペインに引き継がれます" },
+      },
       { id: "splitRight", combos: [["⌘", "D"]], description: { en: "Split right", ja: "右に分割" } },
       { id: "splitDown", combos: [["⌘", "⇧", "D"]], description: { en: "Split down", ja: "下に分割" } },
       { id: "splitBrowserRight", combos: [["⌥", "⌘", "D"]], description: { en: "Split browser right", ja: "右にブラウザ分割" } },
