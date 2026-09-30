@@ -46,9 +46,13 @@ CPU_SAMPLE_SECONDS = 10       # window for the per-process CPU delta
 CPU_BUSY_THRESHOLD = 1.0      # seconds of CPU inside the window
 
 
+DAEMONIZED = False
+
+
 def log(msg):
     line = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  {msg}"
-    print(line, flush=True)
+    if not DAEMONIZED:
+        print(line, flush=True)
     with open(LOG, "a") as fh:
         fh.write(line + "\n")
 
@@ -68,11 +72,21 @@ def clean_env():
     return env
 
 
-def rpc(cli, method, params=None):
-    result = run([cli, "rpc", method, json.dumps(params or {})], env=clean_env(), timeout=20)
-    if result.returncode != 0:
-        raise RuntimeError(f"rpc {method} failed: {result.stderr.strip()[:200]}")
-    return json.loads(result.stdout)
+def rpc(cli, method, params=None, attempts=8):
+    """The app socket occasionally drops a connection (broken pipe, timeouts
+    while it is busy); retry with backoff instead of failing the whole job."""
+    last = None
+    for attempt in range(attempts):
+        try:
+            result = run([cli, "rpc", method, json.dumps(params or {})], env=clean_env(), timeout=30)
+            if result.returncode == 0 and result.stdout.strip():
+                return json.loads(result.stdout)
+            last = result.stderr.strip()[:200] or "empty response"
+        except (subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            last = repr(exc)[:200]
+        log(f"rpc {method} attempt {attempt + 1}/{attempts} failed: {last}")
+        time.sleep(min(30, 3 * (attempt + 1)))
+    raise RuntimeError(f"rpc {method} failed after {attempts} attempts: {last}")
 
 
 def app_pids(path=APP):
@@ -462,11 +476,21 @@ def execute():
             log("PREFLIGHT FAILED: " + p)
         return 2
     cli = os.path.join(APP, CLI_REL)
-    wait_for_idle()
-
-    truth = build_truth(cli)
-    json.dump(truth, open(os.path.join(STATE_DIR, "truth.json"), "w"), indent=1)
-    report_true_ttys(cli, truth)
+    truth = None
+    for attempt in range(5):
+        wait_for_idle()
+        try:
+            truth = build_truth(cli)
+            json.dump(truth, open(os.path.join(STATE_DIR, "truth.json"), "w"), indent=1)
+            report_true_ttys(cli, truth)
+            break
+        except Exception:  # noqa: BLE001
+            log(f"truth/tty phase failed (attempt {attempt + 1}/5); waiting and retrying\n" + traceback.format_exc())
+            time.sleep(60)
+    if truth is None:
+        log("ABORT: could not talk to the app; nothing changed on disk")
+        notify("cmux swap aborted", "Could not talk to the app socket. Nothing was changed.")
+        return 6
     time.sleep(15)  # let one autosave land with the corrected tty table
 
     snapshot_backup = os.path.join(STATE_DIR, f"session-pre-swap-{datetime.now():%Y%m%d-%H%M%S}.json")
@@ -531,6 +555,7 @@ if __name__ == "__main__":
         sys.exit(0 if plan() else 1)
     if "--daemon" in sys.argv:
         daemonize()
+        DAEMONIZED = True
     try:
         log(f"swap job started pid={os.getpid()}")
         code = execute()
