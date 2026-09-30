@@ -1,3 +1,4 @@
+import AppKit
 import Bonsplit
 import CmuxSettings
 import CmuxCore
@@ -580,5 +581,69 @@ extension Workspace {
         precondition(count > 0)
         let remainder = index % count
         return remainder < 0 ? remainder + count : remainder
+    }
+}
+
+
+// MARK: - Focused-pane color scheme
+
+/// Terminal color sequences that paint a pane with its identity color while it
+/// holds focus: black default text, the pane color as background, and a dark
+/// 16-color palette so dim grays and highlights stay readable on pastel. All
+/// standard OSC, so any program that draws with palette colors adapts, and the
+/// reset sequences hand the terminal back to its configured theme.
+enum PaneFocusColorScheme {
+    /// Dark variants of the 16 ANSI colors for a light background.
+    static let lightBackgroundPalette: [String] = [
+        "1E1E1E", "B3261E", "1B7F3B", "8A6100", "1F4FBF", "8E24AA", "0B7285", "3C3C3C",
+        "5F5F5F", "D32F2F", "2E7D32", "B26A00", "2962FF", "AB47BC", "00838F", "202020",
+    ]
+
+    /// Same component read as the tab chip's color marker, so the terminal
+    /// background and the chip resolve to the identical hex.
+    static func hex(_ color: NSColor) -> String {
+        let rgb = color.colorSpace.colorSpaceModel == .rgb ? color : (color.usingColorSpace(.sRGB) ?? color)
+        return String(
+            format: "%02X%02X%02X",
+            Int((rgb.redComponent * 255).rounded()),
+            Int((rgb.greenComponent * 255).rounded()),
+            Int((rgb.blueComponent * 255).rounded())
+        )
+    }
+
+    private static func osc(_ body: String) -> String { "\u{1B}]\(body)\u{07}" }
+
+    /// Sequence that switches a terminal to the focused look on `background`.
+    static func activationSequence(background: NSColor) -> Data {
+        let palette = lightBackgroundPalette.enumerated()
+            .map { "\($0.offset);#\($0.element)" }
+            .joined(separator: ";")
+        let text = osc("10;#000000") + osc("11;#\(hex(background))") + osc("12;#000000") + osc("4;\(palette)")
+        return Data(text.utf8)
+    }
+
+    /// Sequence that restores the terminal's configured colors.
+    static let deactivationSequence = Data((osc("104") + osc("110") + osc("111") + osc("112")).utf8)
+}
+
+extension Workspace {
+    /// Paints or clears the focused-pane scheme for a terminal panel. Idempotent
+    /// per state, and the activation also stamps the panel's last-focus time
+    /// so the tab age badge resets.
+    func applyPaneFocusScheme(panelId: UUID, active: Bool) {
+        let isApplied = paneFocusSchemeActivePanelIds.contains(panelId)
+        guard active != isApplied else { return }
+        guard let terminalPanel = terminalPanel(for: panelId), !isRemoteTerminalSurface(panelId) else { return }
+        if active {
+            paneFocusSchemeActivePanelIds.insert(panelId)
+            panelLastFocusedAt[panelId] = Date()
+            terminalPanel.surface.processRemoteOutput(
+                PaneFocusColorScheme.activationSequence(background: paneIdentityColor(forPanelId: panelId))
+            )
+            refreshTabTitleMarkers(panelId: panelId)
+        } else {
+            paneFocusSchemeActivePanelIds.remove(panelId)
+            terminalPanel.surface.processRemoteOutput(PaneFocusColorScheme.deactivationSequence)
+        }
     }
 }

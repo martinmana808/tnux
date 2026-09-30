@@ -1726,6 +1726,8 @@ struct SessionPanelSnapshot: Codable, Sendable {
     var customSidebar: SessionCustomSidebarPanelSnapshot? = nil
     var agentSession: SessionAgentSessionPanelSnapshot? = nil
     var project: SessionProjectPanelSnapshot?
+    /// Unix time the panel's pane last held focus; drives the tab age badge.
+    var lastFocusedAt: TimeInterval? = nil
 }
 
 extension SessionPanelSnapshot: WorkspaceSessionRemoteRestorePanelSnapshot {}

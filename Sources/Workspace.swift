@@ -641,7 +641,8 @@ extension Workspace {
             rightSidebarTool: rightSidebarToolSnapshot,
             customSidebar: customSidebarSnapshot,
             agentSession: agentSessionSnapshot,
-            project: projectSnapshot
+            project: projectSnapshot,
+            lastFocusedAt: panelLastFocusedAt[panelId]?.timeIntervalSince1970
         )
     }
     private func closedPanelHistoryEntry(panelId: UUID, tabId: TabID, pane: PaneID) -> ClosedPanelHistoryEntry? {
@@ -1561,6 +1562,9 @@ extension Workspace {
         if let title = snapshot.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
             panelTitles[panelId] = title
         }
+        if let lastFocusedAt = snapshot.lastFocusedAt, lastFocusedAt > 0 {
+            panelLastFocusedAt[panelId] = Date(timeIntervalSince1970: lastFocusedAt)
+        }
 
         setPanelCustomTitle(panelId: panelId, title: snapshot.customTitle, source: snapshot.customTitleSource ?? .user)
         setPanelPinned(panelId: panelId, pinned: snapshot.isPinned)
@@ -2468,6 +2472,11 @@ final class Workspace: Identifiable, ObservableObject {
     /// even across dozens of open tabs, unlike a small fixed emoji palette
     /// that starts repeating after ~7 tabs.
     private var panelColors: [UUID: NSColor] = [:]
+    /// When each panel's pane last held focus; feeds the tab age badge and the
+    /// Recently Focused picker, and persists across relaunches.
+    var panelLastFocusedAt: [UUID: Date] = [:]
+    /// Terminal panels currently painted with the focused-pane color scheme.
+    var paneFocusSchemeActivePanelIds: Set<UUID> = []
     private static var nextColorDotIndex = 0
     private static let goldenRatioConjugate = 0.618033988749895
 
@@ -2503,7 +2512,14 @@ final class Workspace: Identifiable, ObservableObject {
     /// the surface ignores a write that matches the color it already carries.
     private func applyPaneTint(panelId: UUID) {
         guard let surface = terminalPanel(for: panelId)?.surface else { return }
-        surface.setPaneTintColor(panelColor(forPanelId: panelId))
+        // Unfocused panes keep the plain theme background; the focused pane is
+        // painted through its terminal palette instead (see applyPaneFocusScheme).
+        surface.setPaneTintColor(nil)
+    }
+
+    /// The identity color for `panelId`, for callers outside the title path.
+    func paneIdentityColor(forPanelId panelId: UUID) -> NSColor {
+        panelColor(forPanelId: panelId)
     }
 
     /// Last path component of `path`, e.g. "/Users/x/Documents/Projects/cmux"
@@ -2517,11 +2533,25 @@ final class Workspace: Identifiable, ObservableObject {
 
     private func withColorDot(_ title: String, panelId: UUID) -> String {
         applyPaneTint(panelId: panelId)
-        let marker = "\u{2}\(colorDotHex(forPanelId: panelId))\u{2}"
+        var marker = "\u{2}\(colorDotHex(forPanelId: panelId))\u{2}"
+        if let lastFocusedAt = panelLastFocusedAt[panelId] {
+            marker += "\u{3}\(Int(lastFocusedAt.timeIntervalSince1970))\u{3}"
+        }
         guard let directory = panelDirectories[panelId], let folder = lastPathSegment(directory) else {
             return "\(marker) \(title)"
         }
         return "\(marker) \(folder) — \(title)"
+    }
+
+    /// Re-pushes a panel's tab title so bonsplit picks up changed markers
+    /// (identity color, last-focus time) without waiting for a title event.
+    func refreshTabTitleMarkers(panelId: UUID) {
+        guard let panel = panels[panelId], let tabId = surfaceIdFromPanelId(panelId) else { return }
+        bonsplitController.updateTab(
+            tabId,
+            title: withColorDot(resolvedPanelTitle(panelId: panelId, fallback: panelTitles[panelId] ?? panel.displayTitle), panelId: panelId),
+            hasCustomTitle: panelCustomTitles[panelId] != nil
+        )
     }
     /// Provenance of entries in `panelCustomTitles` (see ``CustomTitleSource``).
     /// An entry may be absent for a title carried across panel moves or
@@ -10806,6 +10836,7 @@ final class Workspace: Identifiable, ObservableObject {
                 terminalPanel.hostedView.setActive(shouldBeActive)
                 didChange = true
             }
+            applyPaneFocusScheme(panelId: terminalPanel.id, active: shouldBeActive)
             TerminalWindowPortalRegistry.updateEntryVisibility(
                 for: terminalPanel.hostedView,
                 visibleInUI: shouldBeVisible

@@ -6282,6 +6282,10 @@ struct ContentView: View {
         "ios", "ipados", "iphone", "ipad", "phone", "tablet", "qr",
     ]
 
+    static func recentFocusCommandID(for item: FocusHistoryMenuItem) -> String {
+        "palette.recentFocus.\(item.historyIndex)"
+    }
+
     private func commandPaletteCommandContributions() -> [CommandPaletteCommandContribution] {
         func constant(_ value: String) -> (CommandPaletteContextSnapshot) -> String {
             { _ in value }
@@ -7446,6 +7450,21 @@ struct ContentView: View {
                 }
             )
         )
+        let recentlyFocusedLabel = String(localized: "menu.history.recentlyFocused", defaultValue: "Recently Focused")
+        let relativeFormatter = RelativeDateTimeFormatter()
+        relativeFormatter.unitsStyle = .short
+        for item in tabManager.focusHistoryMenuSnapshot(direction: .back, maxItemCount: 15).items where item.isNavigable {
+            let age = relativeFormatter.localizedString(for: item.focusedAt, relativeTo: Date())
+            contributions.append(
+                CommandPaletteCommandContribution(
+                    commandId: Self.recentFocusCommandID(for: item),
+                    title: constant(item.panelTitle ?? item.workspaceTitle),
+                    subtitle: constant("\(recentlyFocusedLabel) • \(item.workspaceTitle) • \(age)"),
+                    keywords: ["recent", "recently", "focused", "history", "back", "last"],
+                    when: { _ in true }
+                )
+            )
+        }
         contributions.append(
             CommandPaletteCommandContribution(
                 commandId: "palette.focusNextPane",
@@ -8146,6 +8165,13 @@ struct ContentView: View {
         registry.register(commandId: "palette.toggleSplitZoom") {
             if !tabManager.toggleFocusedSplitZoom() {
                 NSSound.beep()
+            }
+        }
+        for item in tabManager.focusHistoryMenuSnapshot(direction: .back, maxItemCount: 15).items where item.isNavigable {
+            registry.register(commandId: Self.recentFocusCommandID(for: item)) {
+                if !tabManager.navigateToFocusHistoryMenuItem(item) {
+                    NSSound.beep()
+                }
             }
         }
         registry.register(commandId: "palette.focusNextPane") {
