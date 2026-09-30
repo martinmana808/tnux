@@ -44,6 +44,7 @@ IDLE_CHECKS_REQUIRED = 4      # consecutive idle samples
 IDLE_CHECK_INTERVAL = 30      # seconds between samples
 CPU_SAMPLE_SECONDS = 10       # window for the per-process CPU delta
 CPU_BUSY_THRESHOLD = 1.0      # seconds of CPU inside the window
+HOOK_RUNNING_FRESH_SECONDS = 600  # a 'running' hook record older than this needs CPU to count
 
 
 DAEMONIZED = False
@@ -161,20 +162,28 @@ def process_cwd(pid):
 
 def busy_reasons():
     reasons = []
-    try:
-        store = json.load(open(HOOK_STORE))
-        for sid, rec in store.get("sessions", {}).items():
-            pid = rec.get("pid")
-            if rec.get("agentLifecycle") == "running" and pid and pid_alive(pid):
-                reasons.append(f"hook:{sid[:8]}@{os.path.basename(rec.get('cwd') or '?')} running")
-    except Exception as exc:  # noqa: BLE001
-        reasons.append(f"hook store unreadable: {exc}")
     before = {p["pid"]: p["cputime"] for p in claude_processes()}
     time.sleep(CPU_SAMPLE_SECONDS)
+    active_pids = set()
     for proc in claude_processes():
         delta = proc["cputime"] - before.get(proc["pid"], proc["cputime"])
         if delta > CPU_BUSY_THRESHOLD:
+            active_pids.add(proc["pid"])
             reasons.append(f"cpu:{proc['pid']} +{delta:.1f}s ({(proc['session'] or '?')[:8]})")
+    try:
+        store = json.load(open(HOOK_STORE))
+        now = time.time()
+        for sid, rec in store.get("sessions", {}).items():
+            pid = rec.get("pid")
+            if rec.get("agentLifecycle") != "running" or not pid or not pid_alive(pid):
+                continue
+            # A SessionStart at relaunch leaves "running" behind with no later
+            # hook; only trust it while it is fresh or the process is busy.
+            fresh = now - rec.get("updatedAt", 0) < HOOK_RUNNING_FRESH_SECONDS
+            if fresh or pid in active_pids:
+                reasons.append(f"hook:{sid[:8]}@{os.path.basename(rec.get('cwd') or '?')} running")
+    except Exception as exc:  # noqa: BLE001
+        reasons.append(f"hook store unreadable: {exc}")
     return reasons
 
 
