@@ -585,22 +585,18 @@ extension Workspace {
 }
 
 
-// MARK: - Focused-pane color scheme
+// MARK: - Focused-pane background
 
-/// Terminal color sequences that paint a pane with its identity color while it
-/// holds focus: black default text, the pane color as background, and a dark
-/// 16-color palette so dim grays and highlights stay readable on pastel. All
-/// standard OSC, so any program that draws with palette colors adapts, and the
-/// reset sequences hand the terminal back to its configured theme.
+/// Paints the focused pane's terminal background a tad darker than the theme
+/// background so the active pane reads as such without recoloring text. Done
+/// with a standard OSC 11 background change injected into the pane's parser,
+/// undone with OSC 111 when focus leaves. (A full identity-color background
+/// with a light palette was tried first; grays, whites and reds in agent
+/// output read badly on pastel, so only the tab strip carries the color now.)
 enum PaneFocusColorScheme {
-    /// Dark variants of the 16 ANSI colors for a light background.
-    static let lightBackgroundPalette: [String] = [
-        "1E1E1E", "B3261E", "1B7F3B", "8A6100", "1F4FBF", "8E24AA", "0B7285", "3C3C3C",
-        "5F5F5F", "D32F2F", "2E7D32", "B26A00", "2962FF", "AB47BC", "00838F", "202020",
-    ]
+    /// How much darker the focused pane's background gets (0 = unchanged).
+    static let focusedDarkening: CGFloat = 0.12
 
-    /// Same component read as the tab chip's color marker, so the terminal
-    /// background and the chip resolve to the identical hex.
     static func hex(_ color: NSColor) -> String {
         let rgb = color.colorSpace.colorSpaceModel == .rgb ? color : (color.usingColorSpace(.sRGB) ?? color)
         return String(
@@ -611,25 +607,33 @@ enum PaneFocusColorScheme {
         )
     }
 
-    private static func osc(_ body: String) -> String { "\u{1B}]\(body)\u{07}" }
-
-    /// Sequence that switches a terminal to the focused look on `background`.
-    static func activationSequence(background: NSColor) -> Data {
-        let palette = lightBackgroundPalette.enumerated()
-            .map { "\($0.offset);#\($0.element)" }
-            .joined(separator: ";")
-        let text = osc("10;#000000") + osc("11;#\(hex(background))") + osc("12;#000000") + osc("4;\(palette)")
-        return Data(text.utf8)
+    /// `base` scaled toward black by `focusedDarkening`.
+    static func darkened(_ base: NSColor) -> NSColor {
+        let rgb = base.colorSpace.colorSpaceModel == .rgb ? base : (base.usingColorSpace(.sRGB) ?? base)
+        let factor = 1 - focusedDarkening
+        return NSColor(
+            calibratedRed: rgb.redComponent * factor,
+            green: rgb.greenComponent * factor,
+            blue: rgb.blueComponent * factor,
+            alpha: 1
+        )
     }
 
-    /// Sequence that restores the terminal's configured colors.
-    static let deactivationSequence = Data((osc("104") + osc("110") + osc("111") + osc("112")).utf8)
+    private static func osc(_ body: String) -> String { "\u{1B}]\(body)\u{07}" }
+
+    /// Sequence that sets the terminal background to the darkened theme color.
+    static func activationSequence(themeBackground: NSColor) -> Data {
+        Data(osc("11;#\(hex(darkened(themeBackground)))").utf8)
+    }
+
+    /// Sequence that restores the terminal's configured background.
+    static let deactivationSequence = Data(osc("111").utf8)
 }
 
 extension Workspace {
-    /// Paints or clears the focused-pane scheme for a terminal panel. Idempotent
-    /// per state, and the activation also stamps the panel's last-focus time
-    /// so the tab age badge resets.
+    /// Applies or clears the focused-pane background for a terminal panel.
+    /// Idempotent per state, and the activation also stamps the panel's
+    /// last-focus time so the tab age badge resets.
     func applyPaneFocusScheme(panelId: UUID, active: Bool) {
         let isApplied = paneFocusSchemeActivePanelIds.contains(panelId)
         guard active != isApplied else { return }
@@ -638,7 +642,7 @@ extension Workspace {
             paneFocusSchemeActivePanelIds.insert(panelId)
             panelLastFocusedAt[panelId] = Date()
             terminalPanel.surface.processRemoteOutput(
-                PaneFocusColorScheme.activationSequence(background: paneIdentityColor(forPanelId: panelId))
+                PaneFocusColorScheme.activationSequence(themeBackground: GhosttyApp.shared.defaultBackgroundColor)
             )
             refreshTabTitleMarkers(panelId: panelId)
         } else {

@@ -12,21 +12,20 @@ fades as the pane goes stale (see below).
 
 ## Focused pane
 
-The pane that holds keyboard focus is painted as one colored block:
+The pane that holds keyboard focus is marked by its header:
 
-- its tab bar strip takes the selected tab's color;
-- its terminal switches to a light scheme: black default text, the pane
-  color as background, black cursor, and a dark 16-color palette so dim
-  grays and highlights stay readable on pastel.
+- its tab bar strip takes the selected tab's color, and everything drawn on
+  that strip (tab icon, close, pin and zoom buttons, badges, split actions)
+  turns black so it reads on pastel;
+- its terminal background goes a tad darker than the theme background (12
+  percent toward black), done with a standard OSC 11 change injected into the
+  pane's parser and undone with OSC 111 when focus leaves. Text colors are
+  untouched.
 
-The switch is done with standard terminal color sequences (OSC 4, 10, 11
-and 12) injected into the pane's terminal parser, and undone with the
-matching resets (OSC 104, 110, 111, 112) when focus leaves. Programs that
-draw with palette colors, which is most of them, adapt automatically. A
-program that hardcodes its own colors keeps them while focused.
-
-Unfocused panes keep the plain theme background so the active pane stands
-out. Remote tmux mirror panes are left alone.
+A full identity-color background with a light palette was tried first; grays,
+whites and reds in agent output read badly on pastel, so only the strip
+carries the color. Unfocused panes keep the plain theme background. Remote
+tmux mirror panes are left alone.
 
 ## Aging
 

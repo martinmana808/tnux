@@ -12,21 +12,17 @@ import Testing
 /// Behavior coverage for the focused-pane color scheme and tab aging markers.
 @Suite("Pane focus scheme and aging")
 struct PaneFocusSchemeTests {
-    @Test("activation paints black text, the pane color, and a full dark palette")
+    @Test("activation darkens the theme background a tad and only touches the background")
     func activationSequenceShape() {
-        let color = NSColor(calibratedRed: 0xF3 / 255, green: 0xB9 / 255, blue: 0xAF / 255, alpha: 1)
-        let text = String(decoding: PaneFocusColorScheme.activationSequence(background: color), as: UTF8.self)
-        #expect(text.contains("\u{1B}]10;#000000\u{07}"), "default foreground goes black")
-        #expect(text.contains("\u{1B}]11;#F3B9AF\u{07}"), "background is the pane identity color")
-        #expect(text.contains("\u{1B}]12;#000000\u{07}"), "cursor goes black")
-        #expect(text.contains("\u{1B}]4;0;#1E1E1E;1;#B3261E;"), "palette starts at index 0")
-        #expect(text.contains(";15;#202020\u{07}"), "all 16 palette entries are set")
+        let theme = NSColor(calibratedRed: 0x20 / 255, green: 0x20 / 255, blue: 0x20 / 255, alpha: 1)
+        let text = String(decoding: PaneFocusColorScheme.activationSequence(themeBackground: theme), as: UTF8.self)
+        #expect(text == "\u{1B}]11;#1C1C1C\u{07}", "0x20 scaled by 0.88 is 0x1C; no foreground or palette changes")
+        #expect(PaneFocusColorScheme.hex(PaneFocusColorScheme.darkened(.white)) == "E0E0E0")
     }
 
-    @Test("deactivation resets palette, foreground, background, and cursor")
+    @Test("deactivation resets only the background")
     func deactivationSequenceShape() {
-        let text = String(decoding: PaneFocusColorScheme.deactivationSequence, as: UTF8.self)
-        #expect(text == "\u{1B}]104\u{07}\u{1B}]110\u{07}\u{1B}]111\u{07}\u{1B}]112\u{07}")
+        #expect(String(decoding: PaneFocusColorScheme.deactivationSequence, as: UTF8.self) == "\u{1B}]111\u{07}")
     }
 
     @MainActor
