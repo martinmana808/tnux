@@ -487,7 +487,15 @@ def execute():
     cli = os.path.join(APP, CLI_REL)
     truth = None
     for attempt in range(5):
-        wait_for_idle()
+        if "--now" in sys.argv:
+            log("--now: skipping the idle wait at the operator's request")
+        else:
+            wait_for_idle()
+        # Both unattended runs died on a socket that stopped answering once the
+        # display slept (App Nap). Assert user activity so the app is awake
+        # before the socket phase.
+        run(["caffeinate", "-u", "-t", "3"])
+        time.sleep(3)
         try:
             truth = build_truth(cli)
             json.dump(truth, open(os.path.join(STATE_DIR, "truth.json"), "w"), indent=1)
