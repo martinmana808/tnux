@@ -554,11 +554,16 @@ def execute():
 
 
 def daemonize():
-    if os.fork():
-        os._exit(0)
-    os.setsid()
-    if os.fork():
-        os._exit(0)
+    """Detach from the terminal WITHOUT forking away from the process tree:
+    the app's control socket only accepts connections from descendants of
+    cmux, and a double-forked daemon gets reparented to launchd and is
+    refused ("Failed to write to socket"). A new session keeps the job alive
+    through the pty closing when cmux quits; every socket call happens before
+    that, and the relaunch goes through open(1)."""
+    try:
+        os.setsid()
+    except OSError:
+        pass
     os.chdir("/")
     devnull = os.open(os.devnull, os.O_RDWR)
     os.dup2(devnull, 0)
