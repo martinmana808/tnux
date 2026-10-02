@@ -7465,6 +7465,28 @@ struct ContentView: View {
                 )
             )
         }
+        for rows in 2...3 {
+            contributions.append(
+                CommandPaletteCommandContribution(
+                    commandId: "palette.arrangePanes.rows.\(rows)",
+                    title: constant(String(localized: "command.arrangePanesRows.title", defaultValue: "Arrange Panes in \(rows) Rows")),
+                    subtitle: constant(String(localized: "command.toggleSplitZoom.subtitle", defaultValue: "Terminal Layout")),
+                    keywords: ["arrange", "grid", "rows", "layout", "tile", "spectacle", "panes"],
+                    when: { $0.bool(CommandPaletteContextKeys.workspaceHasSplits) }
+                )
+            )
+        }
+        for columns in 2...3 {
+            contributions.append(
+                CommandPaletteCommandContribution(
+                    commandId: "palette.arrangePanes.columns.\(columns)",
+                    title: constant(String(localized: "command.arrangePanesColumns.title", defaultValue: "Arrange Panes in \(columns) Columns")),
+                    subtitle: constant(String(localized: "command.toggleSplitZoom.subtitle", defaultValue: "Terminal Layout")),
+                    keywords: ["arrange", "grid", "columns", "layout", "tile", "spectacle", "panes"],
+                    when: { $0.bool(CommandPaletteContextKeys.workspaceHasSplits) }
+                )
+            )
+        }
         contributions.append(
             CommandPaletteCommandContribution(
                 commandId: "palette.focusNextPane",
@@ -8172,6 +8194,16 @@ struct ContentView: View {
                 if !tabManager.navigateToFocusHistoryMenuItem(item) {
                     NSSound.beep()
                 }
+            }
+        }
+        for rows in 2...3 {
+            registry.register(commandId: "palette.arrangePanes.rows.\(rows)") {
+                if !tabManager.arrangePanes(rows: rows) { NSSound.beep() }
+            }
+        }
+        for columns in 2...3 {
+            registry.register(commandId: "palette.arrangePanes.columns.\(columns)") {
+                if !tabManager.arrangePanes(columns: columns) { NSSound.beep() }
             }
         }
         registry.register(commandId: "palette.focusNextPane") {

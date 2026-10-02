@@ -3728,6 +3728,16 @@ class TabManager: ObservableObject {
 
     /// Focus the next (or previous) pane of the selected workspace in layout
     /// order, wrapping at the ends. A zoomed pane hands the zoom to the target.
+    /// Lay the selected workspace's panes out as an even grid.
+    @discardableResult
+    func arrangePanes(rows: Int? = nil, columns: Int? = nil) -> Bool {
+        guard let selectedTabId,
+              let tab = tabs.first(where: { $0.id == selectedTabId }) else { return false }
+        if let rows { return tab.arrangePanes(rows: rows) }
+        if let columns { return tab.arrangePanes(columns: columns) }
+        return false
+    }
+
     @discardableResult
     func cyclePaneFocus(forward: Bool) -> Bool {
         guard let selectedTabId,

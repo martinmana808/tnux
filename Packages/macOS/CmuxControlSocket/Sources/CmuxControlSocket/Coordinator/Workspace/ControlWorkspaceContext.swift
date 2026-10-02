@@ -187,6 +187,14 @@ public protocol ControlWorkspaceContext: AnyObject {
         orientationFilter: String?
     ) -> ControlWorkspaceEqualizeResolution
 
+    /// Rebuilds the workspace's panes as an even grid for
+    /// `workspace.arrange_panes`. Exactly one of `rows` / `columns` is set.
+    func controlArrangeWorkspacePanes(
+        routing: ControlRoutingSelectors,
+        rows: Int?,
+        columns: Int?
+    ) -> ControlWorkspaceArrangeResolution
+
     /// Runs `workspace.remote.configure`. The body is app-typed end to end (it
     /// validates ~40 params against `WorkspaceRemote*` app types and mutates the
     /// workspace), so the coordinator passes the raw params and the resolved

@@ -46,6 +46,8 @@ extension ControlCommandCoordinator {
             return workspaceLast(request.params)
         case "workspace.equalize_splits":
             return workspaceEqualizeSplits(request.params)
+        case "workspace.arrange_panes":
+            return workspaceArrangePanes(request.params)
         case "workspace.remote.configure":
             return workspaceRemoteConfigure(request.params)
         case "workspace.remote.foreground_auth_ready":
@@ -638,6 +640,34 @@ extension ControlCommandCoordinator {
                 "workspace_id": .string(workspaceID.uuidString),
                 "workspace_ref": ref(.workspace, workspaceID),
                 "equalized": .bool(equalized),
+            ]))
+        }
+    }
+
+    // MARK: - Arrange
+
+    /// `workspace.arrange_panes` — rebuild the resolved workspace's panes as an
+    /// even grid of `rows` rows or `columns` columns.
+    func workspaceArrangePanes(_ params: [String: JSONValue]) -> ControlCallResult {
+        let rows = int(params, "rows")
+        let columns = int(params, "columns")
+        let resolution = context?.controlArrangeWorkspacePanes(
+            routing: routingSelectors(params),
+            rows: rows,
+            columns: columns
+        ) ?? .tabManagerUnavailable
+        switch resolution {
+        case .tabManagerUnavailable:
+            return .err(code: "unavailable", message: "TabManager not available", data: nil)
+        case .notFound:
+            return .err(code: "not_found", message: "Workspace not found", data: nil)
+        case .invalidParams:
+            return .err(code: "invalid_params", message: "Pass rows or columns as a positive integer", data: nil)
+        case .resolved(let workspaceID, let arranged):
+            return .ok(.object([
+                "workspace_id": .string(workspaceID.uuidString),
+                "workspace_ref": ref(.workspace, workspaceID),
+                "arranged": .bool(arranged),
             ]))
         }
     }

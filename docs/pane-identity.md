@@ -53,3 +53,14 @@ Focus Forward (Cmd+[ / Cmd+]) walk the same history.
   active-state sync in `Sources/Workspace.swift`.
 - Palette entries: `commandPaletteCommandContributions` in
   `Sources/ContentView.swift`.
+
+## Arranging panes as a grid
+
+"Arrange Panes in 2/3 Rows" and "Arrange Panes in 2/3 Columns" in the command
+palette, or `cmux arrange-panes --rows <n>` / `--columns <n>` from a shell,
+rebuild the focused workspace's split tree as an even grid: every surface gets
+its own pane, groups are filled in the current on-screen order (larger groups
+first when the count does not divide evenly, so 7 panes in 3 rows gives
+3/2/2), and dividers equalize. Nothing is closed or created, zoom is cleared,
+and focus returns to the pane that had it. Socket method:
+`workspace.arrange_panes` with `rows` or `columns`.

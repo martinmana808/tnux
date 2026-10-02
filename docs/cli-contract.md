@@ -114,6 +114,7 @@ Environment:
 | `tree` | Print a window, workspace, pane, and surface tree. |
 | `top` | Print process/resource usage for cmux windows, workspaces, panes, and surfaces. |
 | `focus-pane` | Focus a pane. |
+| `arrange-panes` | Rebuild the workspace's panes as an even grid of `--rows <n>` or `--columns <n>`. |
 | `new-pane` | Create a pane with terminal or browser content. |
 | `new-surface` | Create a surface inside a pane. |
 | `close-surface` | Close a surface. |

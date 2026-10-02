@@ -391,6 +391,30 @@ extension TerminalController: ControlWorkspaceContext {
         return .resolved(workspaceID: ws.id, equalized: equalizeResult.didFullyEqualize)
     }
 
+    // MARK: - Arrange
+
+    func controlArrangeWorkspacePanes(
+        routing: ControlRoutingSelectors,
+        rows: Int?,
+        columns: Int?
+    ) -> ControlWorkspaceArrangeResolution {
+        guard let tabManager = resolveTabManager(routing: routing) else {
+            return .tabManagerUnavailable
+        }
+        guard let ws = resolveWorkspace(routing: routing, tabManager: tabManager) else {
+            return .notFound
+        }
+        let arranged: Bool
+        if let rows, rows > 0 {
+            arranged = ws.arrangePanes(rows: rows)
+        } else if let columns, columns > 0 {
+            arranged = ws.arrangePanes(columns: columns)
+        } else {
+            return .invalidParams
+        }
+        return .resolved(workspaceID: ws.id, arranged: arranged)
+    }
+
     /// Mirrors the legacy `v2ResolveWorkspace(params:tabManager:)` precedence
     /// using the pre-resolved routing selectors: workspace, then surface, then
     /// pane (same TabManager), then the selected workspace.

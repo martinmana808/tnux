@@ -299,6 +299,12 @@ extension ControlWorkspaceContext {
         orientationFilter: String?
     ) -> ControlWorkspaceEqualizeResolution { .tabManagerUnavailable }
 
+    func controlArrangeWorkspacePanes(
+        routing: ControlRoutingSelectors,
+        rows: Int?,
+        columns: Int?
+    ) -> ControlWorkspaceArrangeResolution { .tabManagerUnavailable }
+
     func controlConfigureWorkspaceRemote(
         params: [String: JSONValue],
         workspaceID: UUID

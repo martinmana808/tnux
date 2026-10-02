@@ -2021,6 +2021,7 @@ class TerminalController {
             "workspace.previous",
             "workspace.last",
             "workspace.equalize_splits",
+            "workspace.arrange_panes",
             "workspace.remote.configure",
             "workspace.remote.foreground_auth_ready",
             "workspace.remote.reconnect",

@@ -4242,6 +4242,27 @@ struct CMUXCLI {
             let payload = try client.sendV2(method: "pane.focus", params: params)
             printV2Payload(payload, jsonOutput: jsonOutput, idFormat: idFormat, fallbackText: v2OKSummary(payload, idFormat: idFormat, kinds: ["pane", "workspace"]))
 
+        case "arrange-panes":
+            let workspaceArg = workspaceFromArgsOrEnv(commandArgs, windowOverride: windowId)
+            let rowsRaw = optionValue(commandArgs, name: "--rows")
+            let columnsRaw = optionValue(commandArgs, name: "--columns") ?? optionValue(commandArgs, name: "--cols")
+            var params: [String: Any] = [:]
+            if let rowsRaw {
+                guard let rows = Int(rowsRaw), rows > 0 else { throw CLIError(message: "arrange-panes: --rows must be a positive integer") }
+                params["rows"] = rows
+            } else if let columnsRaw {
+                guard let columns = Int(columnsRaw), columns > 0 else { throw CLIError(message: "arrange-panes: --columns must be a positive integer") }
+                params["columns"] = columns
+            } else {
+                throw CLIError(message: "arrange-panes requires --rows <n> or --columns <n>")
+            }
+            let winId = try normalizeWindowHandle(windowFromArgsOrOverride(commandArgs, windowOverride: windowId), client: client)
+            if let winId { params["window_id"] = winId }
+            let wsId = try normalizeWorkspaceHandle(workspaceArg, client: client, windowHandle: winId)
+            if let wsId { params["workspace_id"] = wsId }
+            let payload = try client.sendV2(method: "workspace.arrange_panes", params: params)
+            printV2Payload(payload, jsonOutput: jsonOutput, idFormat: idFormat, fallbackText: v2OKSummary(payload, idFormat: idFormat, kinds: ["workspace"]))
+
         case "new-pane":
             let workspaceArg = workspaceFromArgsOrEnv(commandArgs, windowOverride: windowId)
             let type = optionValue(commandArgs, name: "--type")
@@ -5317,6 +5338,7 @@ struct CMUXCLI {
         "display-message",
         "docs",
         "drag-surface-to-split",
+        "arrange-panes",
         "enable-browser",
         "events",
         "feedback",
@@ -15165,6 +15187,20 @@ struct CMUXCLI {
               cmux memory --groups 20
               cmux --json memory --all
             """)
+        case "arrange-panes":
+            return """
+            Usage: cmux arrange-panes (--rows <n> | --columns <n>) [flags]
+
+            Rebuild the workspace's panes as an even grid: every surface gets its own
+            pane, laid out in <n> rows (columns sized to fit) or <n> columns (rows
+            sized to fit), in the current on-screen order, then dividers equalize.
+
+            Flags:
+              --rows <n>                  Number of rows
+              --columns <n>               Number of columns (alias: --cols)
+              --workspace <id|ref|index>  Workspace context (default: $CMUX_WORKSPACE_ID)
+              --window <id|ref|index>     Window context for workspace refs and indexes
+            """
         case "focus-pane":
             return """
             Usage: cmux focus-pane [--pane <id|ref|index> | <id|ref|index>] [flags]

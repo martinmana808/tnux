@@ -651,3 +651,99 @@ extension Workspace {
         }
     }
 }
+
+
+// MARK: - Grid arrangement (Spectacle-style)
+
+/// Pure helpers for laying panes out as an even grid.
+enum PaneGridArrangement {
+    /// Splits `count` items into `groups` groups as evenly as possible, larger
+    /// groups first: 7 items in 3 groups -> [3, 2, 2].
+    static func groupSizes(count: Int, groups: Int) -> [Int] {
+        guard count > 0, groups > 0 else { return [] }
+        let groupCount = min(groups, count)
+        let base = count / groupCount
+        let remainder = count % groupCount
+        return (0..<groupCount).map { $0 < remainder ? base + 1 : base }
+    }
+}
+
+extension Workspace {
+    /// Rebuilds the split tree as `rows` rows, each holding an even share of
+    /// the workspace's panels side by side, then equalizes dividers.
+    @discardableResult
+    func arrangePanes(rows: Int) -> Bool {
+        arrangePanes(groups: rows, groupOrientation: .vertical, cellOrientation: .horizontal)
+    }
+
+    /// Rebuilds the split tree as `columns` columns, each holding an even
+    /// share of the workspace's panels stacked top to bottom, then equalizes.
+    @discardableResult
+    func arrangePanes(columns: Int) -> Bool {
+        arrangePanes(groups: columns, groupOrientation: .horizontal, cellOrientation: .vertical)
+    }
+
+    /// Every panel keeps its own pane (one surface per pane) in the existing
+    /// on-screen order; nothing is closed or created.
+    private func arrangePanes(
+        groups: Int,
+        groupOrientation: SplitOrientation,
+        cellOrientation: SplitOrientation
+    ) -> Bool {
+        guard layoutMode != .canvas, groups > 0 else { return false }
+        let panelIds = orderedPanelIds.filter { panels[$0] != nil }
+        guard panelIds.count > 1 else { return false }
+        let previousFocus = focusedPanelId
+        clearSplitZoom()
+
+        // 1. Gather every surface into one pane; emptied panes close themselves.
+        guard let anchor = bonsplitController.allPaneIds.first else { return false }
+        for panelId in panelIds where paneId(forPanelId: panelId) != anchor {
+            guard moveSurface(panelId: panelId, toPane: anchor, focus: false) else { return false }
+        }
+        for (index, panelId) in panelIds.enumerated() {
+            _ = reorderSurface(panelId: panelId, toIndex: index, focus: false)
+        }
+
+        // 2. Peel off one pane per group along the primary axis.
+        let sizes = PaneGridArrangement.groupSizes(count: panelIds.count, groups: groups)
+        var groupPanes: [PaneID] = [anchor]
+        var offset = sizes[0]
+        var currentPane = anchor
+        for size in sizes.dropFirst() {
+            guard let tabId = surfaceIdFromPanelId(panelIds[offset]),
+                  let newPane = bonsplitController.splitPane(
+                      currentPane, orientation: groupOrientation, movingTab: tabId, insertFirst: false
+                  ) else { return false }
+            for panelId in panelIds[(offset + 1)..<(offset + size)] {
+                guard moveSurface(panelId: panelId, toPane: newPane, focus: false) else { return false }
+            }
+            groupPanes.append(newPane)
+            currentPane = newPane
+            offset += size
+        }
+
+        // 3. Inside each group, give every surface its own cell along the other axis.
+        offset = 0
+        for (groupIndex, groupPane) in groupPanes.enumerated() {
+            let members = panelIds[offset..<(offset + sizes[groupIndex])]
+            var cellPane = groupPane
+            for panelId in members.dropFirst() {
+                guard let tabId = surfaceIdFromPanelId(panelId),
+                      let newPane = bonsplitController.splitPane(
+                          cellPane, orientation: cellOrientation, movingTab: tabId, insertFirst: false
+                      ) else { return false }
+                cellPane = newPane
+            }
+            offset += sizes[groupIndex]
+        }
+
+        // 4. Even dividers, then hand focus back.
+        _ = owningTabManager?.equalizeSplits(tabId: id)
+        if let previousFocus, panels[previousFocus] != nil {
+            focusPanel(previousFocus)
+        }
+        scheduleTerminalGeometryReconcile()
+        return true
+    }
+}
