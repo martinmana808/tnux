@@ -8297,11 +8297,18 @@ struct ContentView: View {
 
     private func panelDisplayName(workspace: Workspace, panelId: UUID, fallback: String) -> String {
         let title = workspace.panelTitle(panelId: panelId)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let base: String
         if !title.isEmpty {
-            return title
+            base = title
+        } else {
+            let trimmedFallback = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
+            base = trimmedFallback.isEmpty ? String(localized: "panel.displayName.fallback", defaultValue: "Tab") : trimmedFallback
         }
-        let trimmedFallback = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedFallback.isEmpty ? String(localized: "panel.displayName.fallback", defaultValue: "Tab") : trimmedFallback
+        // Match the tab chip: "folder — title", so the project is searchable too.
+        if let folder = workspace.projectSegment(forPanelId: panelId), !base.hasPrefix(folder) {
+            return "\(folder) — \(base)"
+        }
+        return base
     }
 
     private func commandPaletteSelectedIndex(resultCount: Int) -> Int {

@@ -215,11 +215,15 @@ extension cmuxApp {
                     let runtime = workspace.agentRuntimeState(forPanelId: panelId)
                     let values = runtime.map { $0.statusEntries.values.map(\.value) } ?? []
                     let hasAgent = runtime.map { !$0.agentPIDs.isEmpty || !$0.agentPIDKeys.isEmpty } ?? false
+                    var title = workspace.displayTitleForMenus(panelId: panelId, fallback: panel.displayTitle)
+                    if let folder = workspace.projectSegment(forPanelId: panelId), !title.hasPrefix(folder) {
+                        title = "\(folder) — \(title)"
+                    }
                     entries.append(PaneMenuEntry(
                         id: panelId,
                         workspaceId: workspace.id,
                         workspaceTitle: workspace.title,
-                        title: workspace.displayTitleForMenus(panelId: panelId, fallback: panel.displayTitle),
+                        title: title,
                         status: PaneMenuEntry.status(from: values, hasAgent: hasAgent),
                         statusText: values.first
                     ))

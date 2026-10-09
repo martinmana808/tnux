@@ -1,5 +1,6 @@
 import Foundation
 import CmuxCore
+import CmuxWorkspaces
 import Testing
 
 #if canImport(cmux_DEV)
@@ -40,6 +41,26 @@ struct TnuxMenusAndColorsTests {
         #expect(workspace.customColor == nil)
         manager.assignWorkspaceColorsWhereMissing()
         #expect(workspace.customColor != nil)
+    }
+
+    @Test("history rows read folder — pane - workspace")
+    func historyTitleCarriesProjectFolder() {
+        let item = FocusHistoryMenuItem(
+            historyIndex: 0,
+            entry: FocusHistoryEntry(workspaceId: UUID(), panelId: UUID()),
+            workspaceTitle: "F925",
+            panelTitle: "✳ Proposal audit against RFP",
+            position: .older,
+            focusedAt: Date(),
+            isNavigable: true
+        )
+        #expect(FocusHistoryMenuFormatter.title(for: item, projectSegment: "f925-26") == "f925-26 — ✳ Proposal audit against RFP - F925")
+        #expect(FocusHistoryMenuFormatter.title(for: item, projectSegment: nil) == "✳ Proposal audit against RFP - F925")
+        let prefixed = FocusHistoryMenuItem(
+            historyIndex: 0, entry: item.entry, workspaceTitle: "F925", panelTitle: "f925-26 — shell",
+            position: .older, focusedAt: Date(), isNavigable: true
+        )
+        #expect(FocusHistoryMenuFormatter.title(for: prefixed, projectSegment: "f925-26") == "f925-26 — shell - F925", "no double prefix")
     }
 
     @Test("arrange shortcuts default to Cmd+Ctrl+digit and Cmd+Option+digit")

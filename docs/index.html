@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tnux</title>
+<meta name="description" content="Tnux is a personal fork of the cmux terminal, tuned for running many AI coding agents side by side: colored panes, pane aging, grid layouts, and a layout that survives restarts.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0d1117;
+    --bg2: #111827;
+    --panel: #161b22;
+    --line: #26303c;
+    --ink: #e6edf3;
+    --muted: #8b98a8;
+    --accent: #f3b9af;
+    --accent2: #b9d6f3;
+    --accent3: #c9f3b9;
+    --accent4: #f3e0b9;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "SF Pro Text", Inter, system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f7f8fa; --bg2: #ffffff; --panel: #ffffff; --line: #e3e7ee; --ink: #10161f; --muted: #5b6676;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f8fa; --bg2: #ffffff; --panel: #ffffff; --line: #e3e7ee; --ink: #10161f; --muted: #5b6676;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    padding-inline: 20px;
+  }
+  main { max-width: 880px; margin: 0 auto; padding-block: 56px 80px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+  .mark { width: 44px; height: 44px; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 5px; background: var(--panel); border: 1px solid var(--line); }
+  .mark span { border-radius: 3px; }
+  .mark span:nth-child(1){ background: var(--accent); } .mark span:nth-child(2){ background: var(--accent2); }
+  .mark span:nth-child(3){ background: var(--accent3); } .mark span:nth-child(4){ background: var(--accent4); }
+  header h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+  header p { margin: 2px 0 0; color: var(--muted); font-family: var(--mono); font-size: 13px; }
+  .hero { font-size: 22px; line-height: 1.4; max-width: 720px; margin: 0 0 18px; }
+  .hero b { font-weight: 650; }
+  .sub { color: var(--muted); margin: 0 0 32px; max-width: 680px; }
+  .term {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 0 0 36px;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .bar { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .chip { padding: 2px 8px; border-radius: 4px; color: #000; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
+  .chip small { opacity: .62; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+  .pane { background: var(--bg); padding: 10px 12px; min-height: 92px; }
+  .pane .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .pane.active { background: #0a0d12; }
+  .pane .ln { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pane .ln.hot { color: var(--ink); }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr 1fr; } .pane:nth-child(3) { display: none; } }
+  h2 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 40px 0 14px; font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card code, p code, li code { font-family: var(--mono); font-size: 12.5px; background: color-mix(in srgb, var(--line) 55%, transparent); padding: 1px 5px; border-radius: 4px; }
+  ol, ul { padding-left: 20px; } li { margin: 6px 0; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .btn { display: inline-block; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid var(--line); color: var(--ink); background: var(--panel); }
+  .btn.primary { background: var(--accent); color: #000; border-color: transparent; }
+  footer { margin-top: 56px; color: var(--muted); font-size: 13px; font-family: var(--mono); }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div>
+      <h1>Tnux</h1>
+      <p>a cmux fork for running a lot of agents at once</p>
+    </div>
+  </header>
+
+  <p class="hero"><b>Tnux</b> is <a href="https://github.com/manaflow-ai/cmux">cmux</a>, the macOS terminal built around Ghostty, with a stack of hacks for one workload: thirty-odd panes across a few workspaces, most of them hosting a Claude Code session, and never losing track of which is which.</p>
+  <p class="sub">It started as "tabcaller": color the tabs so a wall of identical terminals becomes readable. It grew into pane identity, aging, grid layouts, a restart that puts every session back where it was, and menus that answer "what was I doing, and which agent needs me now".</p>
+
+  <div class="term" aria-label="Illustration of a Tnux window">
+    <div class="bar">
+      <span class="chip" style="background:#f3b9af">golf — ✳ Scoring PWA <small>now</small></span>
+      <span class="chip" style="background:#b9d6f3; opacity:.8">f925-26 — ✳ RFP audit <small>14m</small></span>
+      <span class="chip" style="background:#c9f3b9; opacity:.55">sandia — ✳ Website redesign <small>3h</small></span>
+    </div>
+    <div class="grid">
+      <div class="pane active"><div class="hd"><span class="chip" style="background:#f3b9af">golf <small>now</small></span></div><div class="ln hot">✔ 102 tests pass with the wording assertions updated.</div><div class="ln">● Verified on the live site with your real plan.</div><div class="ln">❯ █</div></div>
+      <div class="pane"><div class="hd"><span class="chip" style="background:#b9d6f3; opacity:.8">f925-26 <small>14m</small></span></div><div class="ln">✱ Proposal audit against RFP</div><div class="ln">🔔 Needs input</div></div>
+      <div class="pane"><div class="hd"><span class="chip" style="background:#c9f3b9; opacity:.55">sandia <small>3h</small></span></div><div class="ln">✱ Website redesign</div><div class="ln">💤 idle · last focused 15:20</div></div>
+    </div>
+  </div>
+
+  <h2>What it adds</h2>
+  <div class="cards">
+    <div class="card"><h3>Pane identity</h3><p>Every pane gets a stable pastel color and a <code>folder — title</code> chip. The focused pane's header strip takes the color with black chrome; its terminal goes a shade darker.</p></div>
+    <div class="card"><h3>Aging</h3><p>Chips show how long since a pane was last focused (<code>4m</code>, <code>3h</code>, <code>2d</code>) and fade as they go stale. Nothing moves; the fresh ones just pop.</p></div>
+    <div class="card"><h3>Restart that restores</h3><p>Fixed the bug where panes swapped sessions and folders after a relaunch (stale tty attribution). Rolling layout backups every five minutes, with a restore menu.</p></div>
+    <div class="card"><h3>Grid layouts</h3><p>Arrange menu, <code>⌘⌃1…9</code> rows, <code>⌘⌥1…9</code> columns, or <code>cmux arrange-panes --rows 3</code>. Every surface keeps its pane; dividers equalize.</p></div>
+    <div class="card"><h3>Panes and History menus</h3><p>Every pane across every window with its agent status (needs input, running, idle), and a 30-deep focus history listed pane first.</p></div>
+    <div class="card"><h3>Workspace colors</h3><p>Workspaces color themselves from the palette, shown as a dot before the name and as the selected highlight.</p></div>
+  </div>
+
+  <h2>What it's for</h2>
+  <ul>
+    <li>Running many long-lived coding agents in parallel without losing the thread of which project each one belongs to.</li>
+    <li>Coming back after a crash or reboot to the exact layout, folders, and resumed sessions you left.</li>
+    <li>Triage: see at a glance which panes are waiting for you, which are working, and which have gone cold.</li>
+    <li>Reshaping a crowded window into rows or columns in one keystroke instead of dragging dividers.</li>
+  </ul>
+
+  <h2>Get it</h2>
+  <ul>
+    <li>Source and changelog: <a href="https://github.com/martinmana808/tnux">github.com/martinmana808/tnux</a> · <a href="https://github.com/martinmana808/tnux/blob/main/docs/tnux-changes.md">what changed</a></li>
+    <li>Builds are ad-hoc signed macOS apps on the <a href="https://github.com/martinmana808/tnux/releases">Releases</a> page. Apple Silicon, macOS 14+.</li>
+    <li>Build it yourself: <code>./scripts/setup.sh</code>, then a Release build of the <code>cmux</code> scheme; the product is <code>Tnux.app</code>.</li>
+  </ul>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/martinmana808/tnux/releases">Download</a>
+    <a class="btn" href="https://github.com/martinmana808/tnux">Source</a>
+  </div>
+
+  <footer>Tnux is a personal fork by tinus. cmux is by manaflow-ai. Bonsplit changes live on the <code>tab-color</code> branch of martinmana808/bonsplit.</footer>
+</main>
+</body>
+</html>

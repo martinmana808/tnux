@@ -2524,6 +2524,13 @@ final class Workspace: Identifiable, ObservableObject {
 
     /// Last path component of `path`, e.g. "/Users/x/Documents/Projects/cmux"
     /// -> "cmux". Returns nil for an empty/root path.
+    /// The project folder (last path segment of the panel's working directory)
+    /// that prefixes its tab title, for menus that list panes.
+    func projectSegment(forPanelId panelId: UUID) -> String? {
+        guard let directory = panelDirectories[panelId] else { return nil }
+        return lastPathSegment(directory)
+    }
+
     private func lastPathSegment(_ path: String) -> String? {
         path.trimmingCharacters(in: .whitespacesAndNewlines)
             .split(separator: "/")
