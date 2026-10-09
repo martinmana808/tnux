@@ -7,6 +7,10 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
 
 ## October 2026
 
+- **Age gauge chips.** The tab chip's color fill shrinks from the right as the
+  pane goes stale (log scale, full under 10 minutes, empty at 14 days); black
+  text over the fill, tab-colored text past it, stroke at full width. Replaces
+  the "4m / 2d" badge.
 - **Pane search.** Cmd+P (Go to Workspace) lists every pane in every workspace
   and searches by title; entries read "folder - title" so a project name finds
   its panes (`app.commandPaletteSearchesAllSurfaces` in `cmux.json`).

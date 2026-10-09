@@ -30,11 +30,13 @@ tmux mirror panes are left alone.
 ## Aging
 
 cmux records when each pane's terminal last became active and stamps it into
-the tab title as a hidden marker. The chip then shows how long ago that was
-("now", "4m", "3h", "2d"), refreshing once a minute, and its fill fades from
-full at 10 minutes down to 45 percent at a day, never lower. Fresh panes stay
-vivid and stale ones recede without any reordering. The timestamps persist in
-the session snapshot, so ages survive a relaunch.
+the tab title as a hidden marker. The chip is then an age gauge: its color
+fill shrinks from the right as the pane goes stale, on a log scale that is
+full for the first 10 minutes, about three quarters at an hour, half at six
+hours, a third at a day, and empty at two weeks. Text over the fill is black,
+text past it takes the chip color, and a stroke keeps the full outline so you
+can read how much is gone. It re-renders once a minute. Nothing is reordered;
+the timestamps persist in the session snapshot, so ages survive a relaunch.
 
 ## Recently Focused
 
