@@ -26,6 +26,12 @@ extension cmuxApp {
 
             Divider()
 
+            Button(String(localized: "menu.help.tnuxChanges", defaultValue: "Tnux: What Changed")) {
+                openTnuxChangesFromHelpMenu()
+            }
+
+            Divider()
+
             Button(String(localized: "menu.help.keyboardShortcutsSettings", defaultValue: "Keyboard Shortcuts Settings…")) {
                 openKeyboardShortcutsFromHelpMenu()
             }
@@ -87,6 +93,26 @@ extension cmuxApp {
 
         if let targetWindow = AppDelegate.shared?.showMainWindowFromMenuBar() {
             FeedbackComposerBridge().openComposer(in: targetWindow)
+        }
+    }
+}
+
+
+extension cmuxApp {
+    /// The running changelog of this fork's modifications (docs/tnux-changes.md
+    /// in the cmux-hacks checkout), opened in cmux's markdown viewer.
+    static let tnuxChangesDocumentPath = "/Users/martinmana/Documents/Projects/cmux-hacks/docs/tnux-changes.md"
+
+    @MainActor
+    func openTnuxChangesFromHelpMenu() {
+        let path = Self.tnuxChangesDocumentPath
+        guard FileManager.default.fileExists(atPath: path) else {
+            NSSound.beep()
+            return
+        }
+        let result = TerminalController.shared.v2FileOpen(params: ["path": path, "focus": true])
+        if case .err = result {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path))
         }
     }
 }

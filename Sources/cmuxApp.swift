@@ -895,6 +895,8 @@ struct cmuxApp: App {
         }
         helpCommands
         historyCommands
+        arrangeCommands
+        panesCommands
         CommandGroup(after: .toolbar) {
             splitCommandButton(title: String(localized: "menu.view.toggleLeftSidebar", defaultValue: "Toggle Left Sidebar"), shortcut: menuShortcut(for: .toggleSidebar)) {
                 if AppDelegate.shared?.toggleSidebarInActiveMainWindow() != true {

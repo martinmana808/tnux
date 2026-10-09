@@ -21,3 +21,40 @@ extension TabManager {
         )
     }
 }
+
+
+// MARK: - Automatic workspace identity colors
+
+/// Picks workspace colors from the user's palette so every workspace gets one
+/// without manual setup; the color drives the sidebar highlight and the dot
+/// before the workspace name.
+enum WorkspaceAutoColor {
+    /// The least-used palette entry (ties broken by palette order), so colors
+    /// spread out across workspaces instead of clustering.
+    static func nextHex(palette: [String], used: [String]) -> String? {
+        guard !palette.isEmpty else { return nil }
+        let normalizedUsed = used.map { $0.uppercased() }
+        var best: (hex: String, count: Int)?
+        for hex in palette {
+            let count = normalizedUsed.filter { $0 == hex.uppercased() }.count
+            if best == nil || count < best!.count { best = (hex, count) }
+        }
+        return best?.hex
+    }
+}
+
+extension TabManager {
+    /// Gives `workspace` a palette color when it has none.
+    func assignWorkspaceColorIfNeeded(_ workspace: Workspace) {
+        guard workspace.customColor == nil else { return }
+        let palette = WorkspaceTabColorSettings.palette().map(\.hex)
+        let used = tabs.compactMap(\.customColor)
+        guard let hex = WorkspaceAutoColor.nextHex(palette: palette, used: used) else { return }
+        workspace.setCustomColor(hex)
+    }
+
+    /// Colors every colorless workspace (after restore or on first launch).
+    func assignWorkspaceColorsWhereMissing() {
+        for tab in tabs { assignWorkspaceColorIfNeeded(tab) }
+    }
+}

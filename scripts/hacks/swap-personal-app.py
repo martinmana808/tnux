@@ -27,12 +27,16 @@ from datetime import datetime
 
 HOME = os.path.expanduser("~")
 BUNDLE_ID = "com.martinmana.cmuxterm"
-APP = "/Applications/cmux Personal.app.bak"
-PREVIOUS = "/Applications/cmux Personal.previous.app"
+APP = "/Applications/Tnux.app"
+# Earlier installs lived here (product was "cmux Personal"); treated as the
+# running app when Tnux.app is not installed yet.
+LEGACY_APP = "/Applications/cmux Personal.app.bak"
+LEGACY_BINARY_REL = "Contents/MacOS/cmux Personal"
+PREVIOUS = "/Applications/Tnux.previous.app"
 NEW_APP = os.path.join(
-    HOME, "Library/Developer/Xcode/DerivedData/cmux-personal/Build/Products/Release/cmux Personal.app"
+    HOME, "Library/Developer/Xcode/DerivedData/cmux-personal/Build/Products/Release/Tnux.app"
 )
-BINARY_REL = "Contents/MacOS/cmux Personal"
+BINARY_REL = "Contents/MacOS/Tnux"
 CLI_REL = "Contents/Resources/bin/cmux"
 SOCKET = os.path.join(HOME, ".local/state/cmux/cmux.sock")
 SNAPSHOT = os.path.join(HOME, "Library/Application Support/cmux", f"session-{BUNDLE_ID}.json")
@@ -90,9 +94,22 @@ def rpc(cli, method, params=None, attempts=8):
     raise RuntimeError(f"rpc {method} failed after {attempts} attempts: {last}")
 
 
-def app_pids(path=APP):
+def installed_app():
+    """The bundle currently installed: Tnux.app, or the legacy name."""
+    if os.path.isdir(APP):
+        return APP, BINARY_REL
+    if os.path.isdir(LEGACY_APP):
+        return LEGACY_APP, LEGACY_BINARY_REL
+    return APP, BINARY_REL
+
+
+def app_pids(path=None):
     """pgrep -f cannot match the spaced bundle path reliably; scan ps."""
-    needle = os.path.join(path, BINARY_REL)
+    if path is None:
+        bundle, binary = installed_app()
+    else:
+        bundle, binary = path, (LEGACY_BINARY_REL if path == LEGACY_APP else BINARY_REL)
+    needle = os.path.join(bundle, binary)
     pids = []
     for line in run(["ps", "-axo", "pid=,command="]).stdout.splitlines():
         pid, _, command = line.strip().partition(" ")
@@ -410,9 +427,10 @@ def quit_app():
 
 
 def swap_bundles():
+    current, _ = installed_app()
     if os.path.exists(PREVIOUS):
         shutil.rmtree(PREVIOUS)
-    os.rename(APP, PREVIOUS)
+    os.rename(current, PREVIOUS)
     result = run(["ditto", NEW_APP, APP])
     if result.returncode != 0:
         raise RuntimeError(f"ditto failed: {result.stderr}")
@@ -449,7 +467,7 @@ def preflight():
     problems = []
     if not os.path.isdir(NEW_APP):
         problems.append(f"new build missing: {NEW_APP}")
-    if not os.path.isdir(APP):
+    if not os.path.isdir(APP) and not os.path.isdir(LEGACY_APP):
         problems.append(f"installed app missing: {APP}")
     if not app_pids():
         problems.append("installed app is not running")
@@ -462,7 +480,7 @@ def plan():
     problems = preflight()
     for p in problems:
         log("PREFLIGHT: " + p)
-    cli = os.path.join(APP, CLI_REL)
+    cli = os.path.join(installed_app()[0], CLI_REL)
     log("busy reasons now: " + ("; ".join(busy_reasons()) or "none"))
     truth = build_truth(cli)
     stale = [s for s, i in truth.items() if i["real_tty"] and i["real_tty"] != i["app_tty"]]
@@ -484,7 +502,7 @@ def execute():
         for p in problems:
             log("PREFLIGHT FAILED: " + p)
         return 2
-    cli = os.path.join(APP, CLI_REL)
+    cli = os.path.join(installed_app()[0], CLI_REL)
     truth = None
     for attempt in range(5):
         if "--now" in sys.argv:

@@ -73,6 +73,8 @@ extension ShortcutAction {
         case .focusDown: return ShortcutStroke(key: "↓", command: true, option: true)
         case .focusNextPane: return ShortcutStroke(key: "→", shift: true, option: true, control: true)
         case .focusPreviousPane: return ShortcutStroke(key: "←", shift: true, option: true, control: true)
+        case .arrangePanesRowsByNumber: return ShortcutStroke(key: "1", command: true, control: true)
+        case .arrangePanesColumnsByNumber: return ShortcutStroke(key: "1", command: true, option: true)
         case .splitRight: return ShortcutStroke(key: "d", command: true)
         case .splitDown: return ShortcutStroke(key: "d", command: true, shift: true)
         case .toggleSplitZoom: return ShortcutStroke(key: "\r", command: true, shift: true)

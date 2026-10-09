@@ -13797,6 +13797,12 @@ struct TabItemView: View, Equatable {
             maxDisplayedCharacters: Self.maxDisplayedTitleCharacters
         )
         let scaledUnreadBadgeSize = 16 * fontScale
+        // Identity dot: the workspace's color, matching its selected highlight.
+        let workspaceDotColor: Color? = workspaceSnapshot.customColorHex.flatMap { hex -> Color? in
+            WorkspaceTabColorSettings.displayNSColor(hex: hex, colorScheme: colorScheme, forceBright: true)
+                .map { Color(nsColor: $0) }
+        }
+        let workspaceDotSize: CGFloat = 9 * fontScale
         let scaledCloseButtonHitSize = max(16, 16 * fontScale)
         let scaledCloseButtonWidth = max(
             SidebarTrailingAccessoryWidthPolicy().closeButtonWidth,
@@ -13805,6 +13811,9 @@ struct TabItemView: View, Equatable {
 
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 8) {
+                if let workspaceDotColor {
+                    WorkspaceColorDot(color: workspaceDotColor, size: workspaceDotSize)
+                }
                 if unreadCount > 0 {
                     ZStack {
                         Circle()
@@ -16567,4 +16576,18 @@ private struct ExtensionSidebarBrowserStackEndDropDelegate: DropDelegate {
 enum SidebarSelection {
     case tabs
     case notifications
+}
+
+
+/// The colored dot before a workspace name in the sidebar (its identity color).
+private struct WorkspaceColorDot: View {
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .padding(.top, 3)
+    }
 }

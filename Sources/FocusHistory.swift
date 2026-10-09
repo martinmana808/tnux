@@ -15,13 +15,15 @@ enum FocusHistoryMenuFormatter {
               panelTitle != workspaceTitle else {
             return workspaceTitle
         }
+        // Pane first: it is what tells you what you were doing; the
+        // workspace is context.
         return String.localizedStringWithFormat(
             String(
                 localized: "menu.history.focusedItemTitleFormat",
                 defaultValue: "%1$@ - %2$@"
             ),
-            workspaceTitle,
-            panelTitle
+            panelTitle,
+            workspaceTitle
         )
     }
 

@@ -4112,6 +4112,11 @@ final class Workspace: Identifiable, ObservableObject {
         }
     }
 
+    /// The panel title as shown in menus (custom title or live title).
+    func displayTitleForMenus(panelId: UUID, fallback: String) -> String {
+        resolvedPanelTitle(panelId: panelId, fallback: fallback)
+    }
+
     private func resolvedPanelTitle(panelId: UUID, fallback: String) -> String {
         let trimmedFallback = fallback.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallbackTitle = trimmedFallback.isEmpty ? "Tab" : trimmedFallback

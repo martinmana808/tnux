@@ -937,7 +937,7 @@ class TabManager: ObservableObject {
         workspaceEnvironment: [String: String] = [:],
         allowTextBoxFocusDefault: Bool = true
     ) -> Workspace {
-        Workspace(
+        let workspace = Workspace(
             title: title,
             workingDirectory: workingDirectory,
             portOrdinal: portOrdinal,
@@ -950,6 +950,8 @@ class TabManager: ObservableObject {
             allowTextBoxFocusDefault: allowTextBoxFocusDefault,
             closeTabWarningDefaults: closeTabWarningDefaults
         )
+        assignWorkspaceColorIfNeeded(workspace)
+        return workspace
     }
 
     func applyCreationChromeInheritance(
@@ -6075,6 +6077,7 @@ extension TabManager {
                 userInfo: [GhosttyNotificationKey.tabId: selectedTabId]
             )
         }
+        assignWorkspaceColorsWhereMissing()
         return restoredPanelIdsByWorkspaceIndex
     }
 

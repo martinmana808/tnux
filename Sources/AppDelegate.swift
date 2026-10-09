@@ -13637,6 +13637,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             return true
         }
 
+        // Grid arrangement: Cmd+Ctrl+N rows / Cmd+Option+N columns (N = 1…9).
+        if let digit = routableNumberedConfiguredShortcutDigit(event: event, action: .arrangePanesRowsByNumber) {
+            if tabManagerForNumberedShortcut(event: event)?.arrangePanes(rows: digit) != true { NSSound.beep() }
+            return true
+        }
+        if let digit = routableNumberedConfiguredShortcutDigit(event: event, action: .arrangePanesColumnsByNumber) {
+            if tabManagerForNumberedShortcut(event: event)?.arrangePanes(columns: digit) != true { NSSound.beep() }
+            return true
+        }
+
         // Pane focus navigation (defaults to Cmd+Option+Arrow, but can be customized to letter/number keys).
         if matchConfiguredDirectionalShortcut(
             event: event,
@@ -15067,6 +15077,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
 
         if routableNumberedConfiguredShortcutDigit(event: event, action: .selectSurfaceByNumber) != nil {
+            return false
+        }
+
+        if routableNumberedConfiguredShortcutDigit(event: event, action: .arrangePanesColumnsByNumber) != nil {
             return false
         }
 

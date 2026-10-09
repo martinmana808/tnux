@@ -84,6 +84,8 @@ public enum ShortcutAction: String, CaseIterable, Sendable, Hashable, SettingCod
     case focusDown
     case focusNextPane
     case focusPreviousPane
+    case arrangePanesRowsByNumber
+    case arrangePanesColumnsByNumber
     case splitRight
     case splitDown
     case toggleSplitZoom
@@ -194,6 +196,7 @@ extension ShortcutAction {
              .clearScreenKeepScrollback:
             return .navigation
         case .focusLeft, .focusRight, .focusUp, .focusDown, .focusNextPane, .focusPreviousPane,
+             .arrangePanesRowsByNumber, .arrangePanesColumnsByNumber,
              .splitRight, .splitDown,
              .toggleSplitZoom, .equalizeSplits, .splitBrowserRight, .splitBrowserDown,
              .toggleRightSidebar, .fileExplorerOpenSelection, .fileExplorerOpenSelectionFinderAlias,
@@ -226,7 +229,8 @@ extension ShortcutAction {
     /// range. All other actions match a single concrete keystroke.
     public var usesNumberedDigitMatching: Bool {
         switch self {
-        case .selectSurfaceByNumber, .selectWorkspaceByNumber:
+        case .selectSurfaceByNumber, .selectWorkspaceByNumber,
+             .arrangePanesRowsByNumber, .arrangePanesColumnsByNumber:
             return true
         default:
             return false
@@ -394,6 +398,8 @@ extension ShortcutAction {
         case .focusDown: return "Focus Pane Down"
         case .focusNextPane: return "Focus Next Pane"
         case .focusPreviousPane: return "Focus Previous Pane"
+        case .arrangePanesRowsByNumber: return "Arrange Panes in 1…9 Rows"
+        case .arrangePanesColumnsByNumber: return "Arrange Panes in 1…9 Columns"
         case .splitRight: return "Split Right"
         case .splitDown: return "Split Down"
         case .toggleSplitZoom: return "Toggle Pane Zoom"

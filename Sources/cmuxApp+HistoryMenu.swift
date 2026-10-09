@@ -8,7 +8,6 @@ extension cmuxApp {
         CommandMenu(String(localized: "menu.history.title", defaultValue: "History")) {
             let historyTabManager = activeTabManager
             let recentlyFocusedSnapshot = recentlyFocusedMenuSnapshot(manager: historyTabManager)
-            let recentlyClosedSnapshot = recentlyClosedMenuSnapshot
 
             splitCommandButton(title: String(localized: "menu.history.focusBack", defaultValue: "Focus Back"), shortcut: menuShortcut(for: .focusHistoryBack)) {
                 historyTabManager.navigateBack()
@@ -25,19 +24,6 @@ extension cmuxApp {
             recentlyFocusedMenuSection(
                 manager: historyTabManager,
                 snapshot: recentlyFocusedSnapshot
-            )
-
-            Divider()
-
-            splitCommandButton(title: String(localized: "menu.history.reopenLastClosed", defaultValue: "Reopen Last Closed"), shortcut: menuShortcut(for: .reopenClosedBrowserPanel)) {
-                if AppDelegate.shared?.reopenMostRecentlyClosedItem(preferredTabManager: historyTabManager) != true {
-                    NSSound.beep()
-                }
-            }
-
-            recentlyClosedMenuSection(
-                manager: historyTabManager,
-                snapshot: recentlyClosedSnapshot
             )
 
             Divider()
@@ -136,8 +122,162 @@ extension cmuxApp {
         return FocusHistoryMenuSnapshot.recentlyFocused(
             back: back,
             forward: forward,
-            maxItemCount: 10
+            maxItemCount: 30
         )
     }
 
+}
+
+
+// MARK: - Arrange menu (grid layouts)
+
+extension cmuxApp {
+    @CommandsBuilder
+    var arrangeCommands: some Commands {
+        CommandMenu(String(localized: "menu.arrange.title", defaultValue: "Arrange")) {
+            let manager = activeTabManager
+            ForEach(1...4, id: \.self) { columns in
+                Button(String(localized: "command.arrangePanesColumns.title", defaultValue: "Arrange Panes in \(columns) Columns")) {
+                    if !manager.arrangePanes(columns: columns) { NSSound.beep() }
+                }
+            }
+            Divider()
+            ForEach(1...4, id: \.self) { rows in
+                Button(String(localized: "command.arrangePanesRows.title", defaultValue: "Arrange Panes in \(rows) Rows")) {
+                    if !manager.arrangePanes(rows: rows) { NSSound.beep() }
+                }
+            }
+            Divider()
+            equalizeSplitsCommandButton()
+        }
+    }
+}
+
+// MARK: - Panes menu (every pane, every workspace, with agent status)
+
+/// One row of the Panes menu: a pane across any window/workspace plus the
+/// agent status cmux knows about it.
+struct PaneMenuEntry: Identifiable, Equatable {
+    enum Status: Equatable {
+        case needsInput
+        case running
+        case idle
+        case none
+
+        var glyph: String {
+            switch self {
+            case .needsInput: return "🔔"
+            case .running: return "⚡"
+            case .idle: return "💤"
+            case .none: return "·"
+            }
+        }
+    }
+
+    let id: UUID
+    let workspaceId: UUID
+    let workspaceTitle: String
+    let title: String
+    let status: Status
+    let statusText: String?
+
+    var menuTitle: String {
+        var line = "\(status.glyph) \(title)"
+        if let statusText, !statusText.isEmpty { line += "  — \(statusText)" }
+        return line
+    }
+
+    /// Classifies a pane from the sidebar status values its agent hooks set.
+    static func status(from statusValues: [String], hasAgent: Bool) -> Status {
+        let needsInput = FeedCoordinator.needsInputStatusValue.lowercased()
+        for value in statusValues {
+            let lowered = value.lowercased()
+            if lowered == needsInput || lowered.contains("needs input") || lowered.contains("waiting") {
+                return .needsInput
+            }
+        }
+        if statusValues.contains(where: { $0.lowercased().contains("running") }) {
+            return .running
+        }
+        return hasAgent ? .idle : .none
+    }
+}
+
+extension cmuxApp {
+    @MainActor
+    private func paneMenuEntries() -> [PaneMenuEntry] {
+        guard let delegate = AppDelegate.shared else { return [] }
+        var entries: [PaneMenuEntry] = []
+        for context in delegate.mainWindowContexts.values {
+            for workspace in context.tabManager.tabs {
+                for panelId in workspace.orderedPanelIds {
+                    guard let panel = workspace.panels[panelId] else { continue }
+                    let runtime = workspace.agentRuntimeState(forPanelId: panelId)
+                    let values = runtime.map { $0.statusEntries.values.map(\.value) } ?? []
+                    let hasAgent = runtime.map { !$0.agentPIDs.isEmpty || !$0.agentPIDKeys.isEmpty } ?? false
+                    entries.append(PaneMenuEntry(
+                        id: panelId,
+                        workspaceId: workspace.id,
+                        workspaceTitle: workspace.title,
+                        title: workspace.displayTitleForMenus(panelId: panelId, fallback: panel.displayTitle),
+                        status: PaneMenuEntry.status(from: values, hasAgent: hasAgent),
+                        statusText: values.first
+                    ))
+                }
+            }
+        }
+        return entries
+    }
+
+    @MainActor
+    private func focusPaneMenuEntry(_ entry: PaneMenuEntry) {
+        guard let delegate = AppDelegate.shared else { return }
+        for context in delegate.mainWindowContexts.values {
+            guard let workspace = context.tabManager.tabs.first(where: { $0.id == entry.workspaceId }) else { continue }
+            if let window = delegate.mainWindow(for: context.windowId) {
+                window.makeKeyAndOrderFront(nil)
+            }
+            context.tabManager.selectTab(workspace)
+            workspace.focusPanel(entry.id)
+            return
+        }
+        NSSound.beep()
+    }
+
+    @CommandsBuilder
+    var panesCommands: some Commands {
+        CommandMenu(String(localized: "menu.panes.title", defaultValue: "Panes")) {
+            let entries = paneMenuEntries()
+            let needsInput = entries.filter { $0.status == .needsInput }
+            let running = entries.filter { $0.status == .running }
+            if entries.isEmpty {
+                Button(String(localized: "menu.panes.empty", defaultValue: "No Panes")) {}.disabled(true)
+            }
+            if !needsInput.isEmpty {
+                Button(String(localized: "menu.panes.needsInput", defaultValue: "Needs Input")) {}.disabled(true)
+                ForEach(needsInput) { entry in
+                    Button("    " + entry.menuTitle) { focusPaneMenuEntry(entry) }
+                }
+                Divider()
+            }
+            if !running.isEmpty {
+                Button(String(localized: "menu.panes.running", defaultValue: "Running")) {}.disabled(true)
+                ForEach(running) { entry in
+                    Button("    " + entry.menuTitle) { focusPaneMenuEntry(entry) }
+                }
+                Divider()
+            }
+            let byWorkspace = Dictionary(grouping: entries, by: \.workspaceId)
+            ForEach(Array(byWorkspace.keys).sorted { a, b in
+                (entries.firstIndex { $0.workspaceId == a } ?? 0) < (entries.firstIndex { $0.workspaceId == b } ?? 0)
+            }, id: \.self) { workspaceId in
+                let group = byWorkspace[workspaceId] ?? []
+                Menu("\(group.first?.workspaceTitle ?? "") (\(group.count))") {
+                    ForEach(group) { entry in
+                        Button(entry.menuTitle) { focusPaneMenuEntry(entry) }
+                    }
+                }
+            }
+        }
+    }
 }
