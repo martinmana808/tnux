@@ -53,8 +53,22 @@ extension TabManager {
         workspace.setCustomColor(hex)
     }
 
-    /// Colors every colorless workspace (after restore or on first launch).
+    /// Colors every colorless workspace. Opt-in: Tnux no longer colors
+    /// workspaces by default; pick a color from the workspace context menu.
     func assignWorkspaceColorsWhereMissing() {
         for tab in tabs { assignWorkspaceColorIfNeeded(tab) }
+    }
+
+    private static let autoColorsClearedDefaultsKey = "tnux.autoWorkspaceColorsCleared.v1"
+
+    /// One-time cleanup for installs that ran the auto-coloring build: clears
+    /// every workspace color so the sidebar starts uncolored, then never runs
+    /// again. Colors picked by hand afterwards are untouched.
+    func clearAutoAssignedWorkspaceColorsOnce(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: Self.autoColorsClearedDefaultsKey) else { return }
+        defaults.set(true, forKey: Self.autoColorsClearedDefaultsKey)
+        for tab in tabs where tab.customColor != nil {
+            tab.setCustomColor(nil)
+        }
     }
 }

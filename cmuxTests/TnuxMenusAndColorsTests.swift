@@ -30,17 +30,22 @@ struct TnuxMenusAndColorsTests {
     }
 
     @MainActor
-    @Test("a new workspace is colored from the palette and restore colors the rest")
-    func workspacesGetColors() throws {
+    @Test("workspaces have no color by default; coloring is opt-in and the one-time clear only runs once")
+    func workspacesUncoloredByDefault() throws {
         let manager = TabManager()
         let workspace = manager.addTab(select: true)
+        #expect(workspace.customColor == nil, "no automatic color")
+
+        manager.assignWorkspaceColorsWhereMissing()
         let hex = try #require(workspace.customColor)
         #expect(WorkspaceTabColorSettings.palette().map { $0.hex.uppercased() }.contains(hex.uppercased()))
 
-        workspace.setCustomColor(nil)
-        #expect(workspace.customColor == nil)
-        manager.assignWorkspaceColorsWhereMissing()
-        #expect(workspace.customColor != nil)
+        let defaults = UserDefaults(suiteName: "tnux-tests-\(UUID().uuidString)")!
+        manager.clearAutoAssignedWorkspaceColorsOnce(defaults: defaults)
+        #expect(workspace.customColor == nil, "first run clears auto colors")
+        workspace.setCustomColor("#C0392B")
+        manager.clearAutoAssignedWorkspaceColorsOnce(defaults: defaults)
+        #expect(workspace.customColor == "#C0392B", "later runs leave hand-picked colors alone")
     }
 
     @Test("history rows read folder — pane - workspace")

@@ -7,6 +7,9 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
 
 ## October 2026
 
+- **Focused chip stays black.** On the focused pane's colored strip the
+  title is black at every gauge level. Workspace colors are opt-in again
+  (pick from the workspace context menu); auto-assigned ones are cleared once.
 - **Gauge measures actions, not focus.** The chip fill now tracks the last
   Enter pressed in the pane (message sent, command run). The leading terminal
   icon is gone from chip tabs, and the focused pane's strip is a single
@@ -35,8 +38,8 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
   listed first; pick one to jump there.
 - **History menu.** "Recently Closed" removed; "Recently Focused" grown from 10
   to 30 entries and listed pane first ("pane — workspace").
-- **Workspace colors.** Every workspace gets a palette color automatically (the
-  least-used one), shown as a dot before its name and as its selected highlight.
+- **Workspace color dot.** A workspace with a color (picked from its context
+  menu) shows it as a dot before its name as well as its selected highlight.
 - **Grid arrangement.** `cmux arrange-panes --rows N | --columns N`, the
   `workspace.arrange_panes` socket method, and palette entries. Every surface
   keeps its own pane; panes fill in on-screen order; dividers equalize.

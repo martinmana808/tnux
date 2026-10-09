@@ -15,7 +15,7 @@ Tnux is cmux, the Ghostty-based macOS terminal with vertical tabs and agent noti
 | Panes menu | Every pane in every window with agent status: 🔔 needs input, ⚡ running, 💤 idle. |
 | History | Recently Focused, 30 deep, listed `folder — pane - workspace`. |
 | Pane search | `⌘P` lists every pane across workspaces, searchable by folder or title. |
-| Workspace colors | Workspaces color themselves from the palette: a dot before the name and the selected highlight. |
+| Workspace colors | Pick a color from a workspace's context menu and it shows as a dot before the name and as the selected highlight. |
 | Pane cycling | `⌃⇧⌥→` / `⌃⇧⌥←` cycle panes; a zoomed pane hands the zoom along. |
 
 Details: [docs/pane-identity.md](docs/pane-identity.md), [docs/session-backups.md](docs/session-backups.md), [docs/tnux-changes.md](docs/tnux-changes.md).

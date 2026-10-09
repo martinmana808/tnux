@@ -950,7 +950,6 @@ class TabManager: ObservableObject {
             allowTextBoxFocusDefault: allowTextBoxFocusDefault,
             closeTabWarningDefaults: closeTabWarningDefaults
         )
-        assignWorkspaceColorIfNeeded(workspace)
         return workspace
     }
 
@@ -6077,7 +6076,7 @@ extension TabManager {
                 userInfo: [GhosttyNotificationKey.tabId: selectedTabId]
             )
         }
-        assignWorkspaceColorsWhereMissing()
+        clearAutoAssignedWorkspaceColorsOnce()
         return restoredPanelIdsByWorkspaceIndex
     }
 
