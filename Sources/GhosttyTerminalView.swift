@@ -5600,6 +5600,11 @@ class GhosttyNSView: NSView, NSUserInterfaceValidations {
     }
 
     override func keyDown(with event: NSEvent) {
+        // Return/Enter marks "last action" for the chip age gauge. One keycode
+        // compare per keystroke; all other keys skip it.
+        if event.keyCode == 36 || event.keyCode == 76, let panelId = terminalSurface?.id {
+            AppDelegate.shared?.notePaneAction(panelId: panelId)
+        }
 #if DEBUG
         let typingTimingStart = CmuxTypingTiming.start()
         let phaseTotalStart = ProcessInfo.processInfo.systemUptime

@@ -9,7 +9,7 @@ Tnux is cmux, the Ghostty-based macOS terminal with vertical tabs and agent noti
 | Area | What you get |
 | --- | --- |
 | Pane identity | Every pane gets a stable pastel color and a `folder — title` chip. The focused pane's header takes the color (black chrome); its terminal goes a shade darker. |
-| Aging | Each chip is a gauge: its color fill shrinks from the right as the pane goes stale (full under 10 minutes, empty at two weeks). Nothing moves. |
+| Aging | Each chip is a gauge: its color fill shrinks from the right since you last acted in the pane (full under 10 minutes, empty at two weeks). Nothing moves. |
 | Restart that restores | Fixed panes swapping sessions and folders after a relaunch. Rolling layout backups every 5 minutes, with History › Restore Layout From Backup…. |
 | Grid layouts | Arrange menu (1–4 rows/columns), `⌘⌃1…9` rows, `⌘⌥1…9` columns, `cmux arrange-panes --rows 3`. |
 | Panes menu | Every pane in every window with agent status: 🔔 needs input, ⚡ running, 💤 idle. |

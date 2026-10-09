@@ -26,21 +26,26 @@ struct PaneFocusSchemeTests {
     }
 
     @MainActor
-    @Test("focusing a pane stamps its last-focus time and marks the scheme active")
-    func focusStampsLastFocusedAt() throws {
+    @Test("focus toggles the scheme but does not count as an action; Enter does")
+    func actionsNotFocusDriveTheGauge() throws {
         let workspace = Workspace(workingDirectory: "/tmp")
         let panel = try #require(workspace.focusedTerminalPanel)
-        #expect(workspace.panelLastFocusedAt[panel.id] == nil)
 
-        let before = Date()
         workspace.applyPaneFocusScheme(panelId: panel.id, active: true)
-        let stamped = try #require(workspace.panelLastFocusedAt[panel.id])
-        #expect(stamped >= before)
         #expect(workspace.paneFocusSchemeActivePanelIds.contains(panel.id))
+        #expect(workspace.panelLastFocusedAt[panel.id] == nil, "focus alone leaves the gauge untouched")
+
+        let first = Date(timeIntervalSince1970: 1_790_000_000)
+        workspace.notePaneAction(panelId: panel.id, at: first)
+        #expect(workspace.panelLastFocusedAt[panel.id] == first)
+        let second = first.addingTimeInterval(5)
+        workspace.notePaneAction(panelId: panel.id, at: second)
+        #expect(workspace.panelLastFocusedAt[panel.id] == second, "rapid actions still move the stamp")
 
         workspace.applyPaneFocusScheme(panelId: panel.id, active: false)
         #expect(!workspace.paneFocusSchemeActivePanelIds.contains(panel.id))
-        #expect(workspace.panelLastFocusedAt[panel.id] == stamped, "losing focus keeps the last-focus time")
+        #expect(workspace.panelLastFocusedAt[panel.id] == second, "losing focus keeps the last action")
+        workspace.notePaneAction(panelId: UUID(), at: second)
     }
 
     @MainActor

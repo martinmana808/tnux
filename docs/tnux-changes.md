@@ -7,6 +7,10 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
 
 ## October 2026
 
+- **Gauge measures actions, not focus.** The chip fill now tracks the last
+  Enter pressed in the pane (message sent, command run). The leading terminal
+  icon is gone from chip tabs, and the focused pane's strip is a single
+  side-to-side pill with the chip's radius.
 - **Age gauge chips.** The tab chip's color fill shrinks from the right as the
   pane goes stale (log scale, full under 10 minutes, empty at 14 days); black
   text over the fill, tab-colored text past it, stroke at full width. Replaces

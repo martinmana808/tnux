@@ -29,8 +29,9 @@ tmux mirror panes are left alone.
 
 ## Aging
 
-cmux records when each pane's terminal last became active and stamps it into
-the tab title as a hidden marker. The chip is then an age gauge: its color
+cmux records the last time you acted in each pane (pressed Enter: sent a
+message to an agent or ran a command; focusing alone does not count) and
+stamps it into the tab title as a hidden marker. The chip is then an age gauge: its color
 fill shrinks from the right as the pane goes stale, on a log scale that is
 full for the first 10 minutes, about three quarters at an hour, half at six
 hours, a third at a day, and empty at two weeks. Text over the fill is black,

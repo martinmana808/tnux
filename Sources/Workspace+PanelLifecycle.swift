@@ -631,6 +631,23 @@ enum PaneFocusColorScheme {
 }
 
 extension Workspace {
+    /// Minimum gap between chip refreshes driven by Enter presses, so holding
+    /// the key never floods bonsplit with title updates.
+    static let paneActionRefreshInterval: TimeInterval = 30
+
+    /// Records that the user acted in this pane (pressed Enter: sent a message
+    /// to an agent or ran a command). This is what the chip's age gauge
+    /// measures; merely focusing a pane does not count.
+    func notePaneAction(panelId: UUID, at now: Date = Date()) {
+        guard panels[panelId] != nil else { return }
+        let previous = panelLastFocusedAt[panelId]
+        panelLastFocusedAt[panelId] = now
+        if let previous, now.timeIntervalSince(previous) < Self.paneActionRefreshInterval {
+            return
+        }
+        refreshTabTitleMarkers(panelId: panelId)
+    }
+
     /// Applies or clears the focused-pane background for a terminal panel.
     /// Idempotent per state, and the activation also stamps the panel's
     /// last-focus time so the tab age badge resets.
@@ -640,11 +657,9 @@ extension Workspace {
         guard let terminalPanel = terminalPanel(for: panelId), !isRemoteTerminalSurface(panelId) else { return }
         if active {
             paneFocusSchemeActivePanelIds.insert(panelId)
-            panelLastFocusedAt[panelId] = Date()
             terminalPanel.surface.processRemoteOutput(
                 PaneFocusColorScheme.activationSequence(themeBackground: GhosttyApp.shared.defaultBackgroundColor)
             )
-            refreshTabTitleMarkers(panelId: panelId)
         } else {
             paneFocusSchemeActivePanelIds.remove(panelId)
             terminalPanel.surface.processRemoteOutput(PaneFocusColorScheme.deactivationSequence)

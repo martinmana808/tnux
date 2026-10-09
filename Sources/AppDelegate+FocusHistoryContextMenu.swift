@@ -138,3 +138,16 @@ extension AppDelegate {
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: anchorView.bounds.height), in: anchorView)
     }
 }
+
+
+extension AppDelegate {
+    /// Enter was pressed in the terminal view for `panelId`: stamp the pane's
+    /// last action for the chip age gauge. Called from the key path, so it
+    /// only runs on Return/Enter and does a single id lookup.
+    @MainActor
+    func notePaneAction(panelId: UUID) {
+        guard let located = locateSurface(surfaceId: panelId),
+              let workspace = located.tabManager.tabs.first(where: { $0.id == located.workspaceId }) else { return }
+        workspace.notePaneAction(panelId: panelId)
+    }
+}
