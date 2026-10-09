@@ -7,6 +7,14 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
 
 ## October 2026
 
+- **Pane search.** Cmd+P (Go to Workspace) lists every pane in every workspace
+  and searches by title; entries read "folder - title" so a project name finds
+  its panes (`app.commandPaletteSearchesAllSurfaces` in `cmux.json`).
+- **Project folder everywhere.** Recently Focused rows, Panes menu entries and
+  the switcher carry the pane's folder prefix, like the tab chips.
+- **Repo and landing.** Source lives at github.com/martinmana808/tnux (full
+  cmux history, `upstream` remote kept for merges); landing page at
+  martinmana808.github.io/tnux; builds on the Releases page.
 - **Renamed to Tnux.** The Release build is now `Tnux.app` (bundle id unchanged,
   so settings, sessions and sockets carry over). The install job moves the old
   "cmux Personal" bundle aside as `Tnux.previous.app`.
