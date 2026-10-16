@@ -647,6 +647,13 @@ extension Workspace {
             return
         }
         refreshTabTitleMarkers(panelId: panelId)
+        notePaneActionOrderDidChange()
+    }
+
+    /// The action history (Cmd+[ / Cmd+], Recent Actions, sidebar) reads the
+    /// stamps live; this nudges the menus and the sidebar to rebuild.
+    func notePaneActionOrderDidChange() {
+        NotificationCenter.default.post(name: .tabManagerFocusHistoryRevisionDidChange, object: nil)
     }
 
     /// Applies or clears the focused-pane background for a terminal panel.
@@ -848,6 +855,7 @@ extension Workspace {
         if stored == transcriptDate { return false }
         panelLastFocusedAt[panelId] = transcriptDate
         refreshTabTitleMarkers(panelId: panelId)
+        notePaneActionOrderDidChange()
         return true
     }
 

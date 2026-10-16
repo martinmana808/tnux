@@ -7,7 +7,7 @@ extension cmuxApp {
     var historyCommands: some Commands {
         CommandMenu(String(localized: "menu.history.title", defaultValue: "History")) {
             let historyTabManager = activeTabManager
-            let recentlyFocusedSnapshot = recentlyFocusedMenuSnapshot(manager: historyTabManager)
+            let recentActions = recentActionsMenuEntries(manager: historyTabManager)
 
             splitCommandButton(title: String(localized: "menu.history.focusBack", defaultValue: "Focus Back"), shortcut: menuShortcut(for: .focusHistoryBack)) {
                 historyTabManager.navigateBack()
@@ -21,9 +21,9 @@ extension cmuxApp {
 
             Divider()
 
-            recentlyFocusedMenuSection(
+            recentActionsMenuSection(
                 manager: historyTabManager,
-                snapshot: recentlyFocusedSnapshot
+                entries: recentActions
             )
 
             Divider()
@@ -41,27 +41,26 @@ extension cmuxApp {
     }
 
     @ViewBuilder
-    private func recentlyFocusedMenuSection(
+    private func recentActionsMenuSection(
         manager: TabManager,
-        snapshot: FocusHistoryMenuSnapshot
+        entries: [PaneActionHistoryEntry]
     ) -> some View {
         Button(historyMenuSectionTitle(
-            title: String(localized: "menu.history.recentlyFocused", defaultValue: "Recently Focused"),
-            subtitle: String(localized: "menu.history.recentlyFocused.subtitle", defaultValue: "Most recent focus targets")
+            title: String(localized: "menu.history.recentActions", defaultValue: "Recent Actions"),
+            subtitle: String(localized: "menu.history.recentActions.subtitle", defaultValue: "Panes by your last message or command")
         )) {}
             .disabled(true)
 
-        if snapshot.items.isEmpty {
-            Button(String(localized: "menu.history.noFocusHistory", defaultValue: "No Focus History")) {}
+        if entries.isEmpty {
+            Button(String(localized: "menu.history.noActionHistory", defaultValue: "No Actions Yet")) {}
                 .disabled(true)
         } else {
-            ForEach(snapshot.items, id: \.historyIndex) { item in
-                Button(FocusHistoryMenuFormatter.menuTitle(for: item)) {
-                    if !manager.navigateToFocusHistoryMenuItem(item) {
+            ForEach(entries) { entry in
+                Button(PaneActionHistoryFormatter.menuTitle(for: entry)) {
+                    if !manager.focusPane(panelId: entry.id, workspaceId: entry.workspaceId) {
                         NSSound.beep()
                     }
                 }
-                .disabled(!item.isNavigable)
             }
         }
     }
@@ -115,15 +114,9 @@ extension cmuxApp {
         HistoryMenuLineFormatter.titleWithSubtitle(title: title, subtitle: subtitle)
     }
 
-    private func recentlyFocusedMenuSnapshot(manager: TabManager) -> FocusHistoryMenuSnapshot {
+    private func recentActionsMenuEntries(manager: TabManager) -> [PaneActionHistoryEntry] {
         let _ = focusHistoryMenuInvalidator.revision
-        let back = manager.focusHistoryMenuSnapshot(direction: .back)
-        let forward = manager.focusHistoryMenuSnapshot(direction: .forward)
-        return FocusHistoryMenuSnapshot.recentlyFocused(
-            back: back,
-            forward: forward,
-            maxItemCount: 30
-        )
+        return Array(manager.paneActionHistoryEntries.prefix(30))
     }
 
 }
@@ -215,15 +208,11 @@ extension cmuxApp {
                     let runtime = workspace.agentRuntimeState(forPanelId: panelId)
                     let values = runtime.map { $0.statusEntries.values.map(\.value) } ?? []
                     let hasAgent = runtime.map { !$0.agentPIDs.isEmpty || !$0.agentPIDKeys.isEmpty } ?? false
-                    var title = workspace.displayTitleForMenus(panelId: panelId, fallback: panel.displayTitle)
-                    if let folder = workspace.projectSegment(forPanelId: panelId), !title.hasPrefix(folder) {
-                        title = "\(folder) — \(title)"
-                    }
                     entries.append(PaneMenuEntry(
                         id: panelId,
                         workspaceId: workspace.id,
                         workspaceTitle: workspace.title,
-                        title: title,
+                        title: workspace.paneListTitle(panelId: panelId, fallback: panel.displayTitle),
                         status: PaneMenuEntry.status(from: values, hasAgent: hasAgent),
                         statusText: values.first
                     ))

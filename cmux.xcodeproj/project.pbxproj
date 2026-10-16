@@ -619,6 +619,8 @@
 		325AF8814443BDA97AC3CC98 /* Pairing/MobilePairingQRImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76EC5E03C345BEAC25828A7 /* Pairing/MobilePairingQRImageView.swift */; };
 		A2538FE83AE79539E3BF9248 /* Pairing/MobilePairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9BC53FA4991A6EBFB930EDF /* Pairing/MobilePairingView.swift */; };
 		18A8E29E9BD87E184983527C /* Pairing/MobilePairingWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE701F43A0B49F08835191C /* Pairing/MobilePairingWindowController.swift */; };
+		C4160A050000000000000005 /* PaneActionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4160A050000000000000006 /* PaneActionHistory.swift */; };
+		5A7E11AB0000000000000001 /* PaneActionHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E11AB0000000000000002 /* PaneActionHistoryTests.swift */; };
 		D0B1001CA1B2C3D4E5F60001 /* PaneDropRoutingSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B1001DA1B2C3D4E5F60001 /* PaneDropRoutingSupport.swift */; };
 		5A7E11AA0000000000000105 /* PaneFocusSchemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7E11AA0000000000000106 /* PaneFocusSchemeTests.swift */; };
 		C44550000000000000000001 /* PanelOwnedNativeViewSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C44550000000000000000002 /* PanelOwnedNativeViewSessionTests.swift */; };
@@ -1908,6 +1910,8 @@
 		B76EC5E03C345BEAC25828A7 /* Pairing/MobilePairingQRImageView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Pairing/MobilePairingQRImageView.swift; sourceTree = "<group>"; };
 		F9BC53FA4991A6EBFB930EDF /* Pairing/MobilePairingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Pairing/MobilePairingView.swift; sourceTree = "<group>"; };
 		5AE701F43A0B49F08835191C /* Pairing/MobilePairingWindowController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Pairing/MobilePairingWindowController.swift; sourceTree = "<group>"; };
+		C4160A050000000000000006 /* PaneActionHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneActionHistory.swift; sourceTree = "<group>"; };
+		5A7E11AB0000000000000002 /* PaneActionHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneActionHistoryTests.swift; sourceTree = "<group>"; };
 		D0B1001DA1B2C3D4E5F60001 /* PaneDropRoutingSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneDropRoutingSupport.swift; sourceTree = "<group>"; };
 		5A7E11AA0000000000000106 /* PaneFocusSchemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneFocusSchemeTests.swift; sourceTree = "<group>"; };
 		C44550000000000000000002 /* PanelOwnedNativeViewSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelOwnedNativeViewSessionTests.swift; sourceTree = "<group>"; };
@@ -3205,6 +3209,7 @@
 				6313C7A00000000000000002 /* AppDelegate+PaneMemoryGuardrail.swift */,
 				C4160A030000000000000002 /* AppDelegate+ClosedItemHistory.swift */,
 				C4160A040000000000000002 /* AppDelegate+FocusHistoryContextMenu.swift */,
+				C4160A050000000000000006 /* PaneActionHistory.swift */,
 				C4160A050000000000000004 /* AppDelegate+PaneLastActionRefresh.swift */,
 				C4160A050000000000000002 /* ClaudeTranscriptLastAction.swift */,
 				604500100000000000000006 /* AppDelegate+WindowIdentity.swift */,
@@ -3866,6 +3871,7 @@
 				5A7E11AA0000000000000104 /* WorkspacePaneCycleTests.swift */,
 				5A7E11AA0000000000000106 /* PaneFocusSchemeTests.swift */,
 				5A7E11AA0000000000000108 /* WorkspacePaneArrangeTests.swift */,
+				5A7E11AB0000000000000002 /* PaneActionHistoryTests.swift */,
 				5A7E11AA000000000000010C /* ClaudeTranscriptLastActionTests.swift */,
 				5A7E11AA000000000000010A /* TnuxMenusAndColorsTests.swift */,
 				5830CA11BAC0000000000001 /* SocketCallbackAwaiterMainThreadTests.swift */,
@@ -4678,6 +4684,7 @@
 				325AF8814443BDA97AC3CC98 /* Pairing/MobilePairingQRImageView.swift in Sources */,
 				A2538FE83AE79539E3BF9248 /* Pairing/MobilePairingView.swift in Sources */,
 				18A8E29E9BD87E184983527C /* Pairing/MobilePairingWindowController.swift in Sources */,
+				C4160A050000000000000005 /* PaneActionHistory.swift in Sources */,
 				D0B1001CA1B2C3D4E5F60001 /* PaneDropRoutingSupport.swift in Sources */,
 				A9E020000000000000000008 /* Panels/AgentSessionBridge.swift in Sources */,
 				A9F20000000000000000000B /* Panels/AgentSessionBridgeError.swift in Sources */,
@@ -5463,6 +5470,7 @@
 				9637C6D3170F4BE1A7EF6243 /* OmnibarSubmitDecisionTests.swift in Sources */,
 				0A0F00550000000000000001 /* OmpSupportTests.swift in Sources */,
 				A5E01203A1B2C3D4E5F60718 /* OpenCodeHookRegressionTests.swift in Sources */,
+				5A7E11AB0000000000000001 /* PaneActionHistoryTests.swift in Sources */,
 				5A7E11AA0000000000000105 /* PaneFocusSchemeTests.swift in Sources */,
 				C44550000000000000000001 /* PanelOwnedNativeViewSessionTests.swift in Sources */,
 				6313FACE0000000000000000 /* PaneMemoryGuardrailTests.swift in Sources */,

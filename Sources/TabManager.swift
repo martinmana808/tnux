@@ -3781,22 +3781,25 @@ class TabManager: ObservableObject {
         focusHistoryNavigation.navigateToFocusHistoryMenuItem(item)
     }
 
+    // Focus Back / Focus Forward walk the panes by the user's last action
+    // (message sent or command run), not the focus history: an accidental
+    // focus never enters the list. See PaneActionHistory.
     @discardableResult
     func navigateBack() -> Bool {
-        focusHistoryNavigation.navigateBack()
+        navigateActionHistory(.back)
     }
 
     @discardableResult
     func navigateForward() -> Bool {
-        focusHistoryNavigation.navigateForward()
+        navigateActionHistory(.forward)
     }
 
     var canNavigateBack: Bool {
-        focusHistoryNavigation.canNavigateBack
+        canNavigateActionHistoryBack
     }
 
     var canNavigateForward: Bool {
-        focusHistoryNavigation.canNavigateForward
+        canNavigateActionHistoryForward
     }
 
     // FocusHistoryHosting witnesses that touch private members
