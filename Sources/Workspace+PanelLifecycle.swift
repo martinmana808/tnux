@@ -3,6 +3,7 @@ import Bonsplit
 import CmuxSettings
 import CmuxCore
 import Darwin
+import CmuxPanes
 import Foundation
 import CmuxSidebar
 
@@ -753,13 +754,53 @@ extension Workspace {
             offset += sizes[groupIndex]
         }
 
-        // 4. Even dividers, then hand focus back.
-        _ = owningTabManager?.equalizeSplits(tabId: id)
+        // 4. Even dividers, then hand focus back. The pass runs again once
+        // bonsplit has laid the new splits out: divider moves issued in the
+        // same turn the splits were created are clamped against unsized
+        // panes and leave the grid uneven (the same pass the Equalize Splits
+        // shortcut runs fixes it a moment later, so we run exactly that).
+        equalizeSplitsNow()
         if let previousFocus, panels[previousFocus] != nil {
             focusPanel(previousFocus)
         }
         scheduleTerminalGeometryReconcile()
+        scheduleArrangeEqualizeRetry(attempt: 0)
         return true
+    }
+
+    /// The Equalize Splits pass, exactly what the shortcut and the menu run:
+    /// plans even dividers from the current tree (leaf-weighted along each
+    /// split's axis) and applies them. Returns true when every divider took
+    /// its planned position.
+    @discardableResult
+    func equalizeSplitsNow() -> Bool {
+        equalizeSplitsNow(using: PaneLayoutService())
+    }
+
+    @discardableResult
+    func equalizeSplitsNow(using layout: PaneLayoutService) -> Bool {
+        let result = layout.equalizeSplits(in: bonsplitController.treeSnapshot(), controller: bonsplitController)
+        if result.foundSplit {
+            didProgrammaticallyChangeSplitGeometry()
+        }
+        return result.didFullyEqualize
+    }
+
+    /// Delays between the settle passes, in seconds: next turn, then after
+    /// the layout had time to size the panes.
+    static let arrangeEqualizeRetryDelays: [TimeInterval] = [0, 0.1, 0.4, 1.0]
+
+    private func scheduleArrangeEqualizeRetry(attempt: Int) {
+        guard attempt < Self.arrangeEqualizeRetryDelays.count else { return }
+        let delay = Self.arrangeEqualizeRetryDelays[attempt]
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.layoutMode != .canvas else { return }
+            let even = self.equalizeSplitsNow()
+            self.scheduleTerminalGeometryReconcile()
+            if !even {
+                self.scheduleArrangeEqualizeRetry(attempt: attempt + 1)
+            }
+        }
     }
 }
 
