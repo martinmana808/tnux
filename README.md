@@ -9,11 +9,12 @@ Tnux is cmux, the Ghostty-based macOS terminal with vertical tabs and agent noti
 | Area | What you get |
 | --- | --- |
 | Pane identity | Every pane gets a stable pastel color and a `folder — title` chip. The focused pane's header takes the color (black chrome); its terminal goes a shade darker. |
-| Aging | Each chip is a gauge: its color fill shrinks from the right since you last acted in the pane (full under 10 minutes, empty at two weeks). Nothing moves. |
+| Aging | Each chip is a gauge: full means you acted in the pane today (days run 05:00 to 05:00), then it steps down once a day and is empty at 30. Backfilled from the Claude transcript; unknown draws empty. Hover for the date. |
 | Restart that restores | Fixed panes swapping sessions and folders after a relaunch. Rolling layout backups every 5 minutes, with History › Restore Layout From Backup…. |
 | Grid layouts | Arrange menu (1–4 rows/columns), `⌘⌃1…9` rows, `⌘⌥1…9` columns, `cmux arrange-panes --rows 3`. |
 | Panes menu | Every pane in every window with agent status: 🔔 needs input, ⚡ running, 💤 idle. |
-| History | Recently Focused, 30 deep, listed `folder — pane - workspace`. |
+| History | Cmd+[ / Cmd+] and "Recent Actions" walk panes by your last message or command, never by focus. 30 deep, `folder — pane - workspace`. |
+| Sidebar | Workspaces expand to their panes (dot, title, status, age gauge); collapsed by default with an Arc-style peek of the focused pane. Needs-input and Running sections on top; Expand/Collapse All, View All, Sort by Last Prompted. |
 | Pane search | `⌘P` lists every pane across workspaces, searchable by folder or title. |
 | Workspace colors | Pick a color from a workspace's context menu and it shows as a dot before the name and as the selected highlight. |
 | Pane cycling | `⌃⇧⌥→` / `⌃⇧⌥←` cycle panes; a zoomed pane hands the zoom along. |

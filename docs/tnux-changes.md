@@ -7,6 +7,28 @@ cmux-hacks checkout; the bonsplit pieces live on the `tab-color` branch of
 
 ## October 2026
 
+- **Sidebar shows panes.** Each workspace row has a chevron; expanded, it
+  lists its panes (identity dot, `folder — title`, status icon, a small age
+  gauge). Collapsed is the default; the selected workspace shows just its
+  focused pane as an Arc-style peek, so Cmd+[ never spills a long list open.
+  "Needs input" and "Running" sections sit above the list. Footer controls,
+  the Panes menu and the palette offer Expand/Collapse All, View All Panes
+  (one flat list, workspace in muted text) and Sort by Last Prompted. All
+  three choices persist.
+- **Focus Back / Forward walk actions.** Cmd+[ and Cmd+] move through panes
+  ordered by your last message or command, not by focus: a pane you only
+  glanced at never enters the list, and from a pane you never acted in Cmd+[
+  goes to the last place you wrote. "Recently Focused" became "Recent
+  Actions" in the History menu and the palette (`folder — title - workspace`,
+  "Last action 3 days ago").
+- **Age gauge means "touched today".** Days run 05:00 to 05:00; the chip is
+  full while no 05:00 boundary has passed since your last action, then steps
+  down once a day on a log scale (1 day 80%, 6 days 43%, 13 days 23%, empty
+  at 30). The truth comes from the Claude session transcript (your last
+  message), so panes untouched since September read as such; a pane with no
+  data draws empty, never full. Hover a chip for the exact date.
+- **Arrange ends even.** The grid arrangement re-runs Equalize Splits once
+  the layout has settled, so you no longer need Cmd+Ctrl+= afterwards.
 - **Focused chip stays black.** On the focused pane's colored strip the
   title is black at every gauge level. Workspace colors are opt-in again
   (pick from the workspace context menu); auto-assigned ones are cleared once.
