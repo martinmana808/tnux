@@ -762,3 +762,58 @@ extension Workspace {
         return true
     }
 }
+
+
+// MARK: - Last action from Claude transcripts
+
+extension Workspace {
+    /// Remembers the transcript file an agent hook reported for a panel.
+    func noteTranscriptPath(_ path: String, panelId: UUID) {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, panels[panelId] != nil else { return }
+        panelTranscriptPathsByPanelId[panelId] = trimmed
+    }
+
+    /// The Claude session a panel is bound to, if any.
+    func transcriptSessionId(forPanelId panelId: UUID) -> String? {
+        guard let binding = surfaceResumeBindingsByPanelId[panelId] else { return nil }
+        if let kind = binding.kind?.lowercased(), !kind.isEmpty, kind != "claude" { return nil }
+        guard let checkpointId = binding.checkpointId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !checkpointId.isEmpty else { return nil }
+        return checkpointId
+    }
+
+    /// The transcript file for a panel: the hook-reported path when it still
+    /// exists, else the session's file under `~/.claude/projects`.
+    func transcriptURL(forPanelId panelId: UUID) -> URL? {
+        if let path = panelTranscriptPathsByPanelId[panelId], FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
+        }
+        guard let sessionId = transcriptSessionId(forPanelId: panelId) else { return nil }
+        return ClaudeTranscriptLastAction.transcriptURL(sessionId: sessionId)
+    }
+
+    /// Merges the transcript's last human message into the panel's
+    /// last-action stamp. The later of the two wins, unless `replacing` is
+    /// set, in which case the transcript date replaces whatever was stored
+    /// (used once to retire stamps written before actions were tracked).
+    /// Returns true when the stamp changed.
+    @discardableResult
+    func refreshLastActionFromTranscript(panelId: UUID, replacing: Bool = false) -> Bool {
+        guard panels[panelId] != nil, let url = transcriptURL(forPanelId: panelId),
+              let transcriptDate = ClaudeTranscriptLastAction.lastHumanMessageDate(in: url) else { return false }
+        let stored = panelLastFocusedAt[panelId]
+        if !replacing, let stored, stored >= transcriptDate { return false }
+        if stored == transcriptDate { return false }
+        panelLastFocusedAt[panelId] = transcriptDate
+        refreshTabTitleMarkers(panelId: panelId)
+        return true
+    }
+
+    /// Runs the transcript merge over every panel. Returns the panels whose
+    /// stamp changed.
+    @discardableResult
+    func refreshLastActionsFromTranscripts(replacing: Bool = false) -> [UUID] {
+        orderedPanelIds.filter { refreshLastActionFromTranscript(panelId: $0, replacing: replacing) }
+    }
+}

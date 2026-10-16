@@ -1042,6 +1042,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 #endif
 
     var mainWindowContexts: [ObjectIdentifier: MainWindowContext] = [:]
+    /// Once-a-minute transcript merge for the age gauge (see AppDelegate+PaneLastActionRefresh).
+    var paneLastActionRefreshTimer: Timer?
     private var mainWindowControllers: [MainWindowController] = []
 
     /// Tracks the cascade point for new windows, matching Ghostty's upstream algorithm.
@@ -1278,6 +1280,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             ]
         )
         AppIconLaunchState.markDidFinishLaunching()
+        if !isRunningUnderXCTest {
+            startPaneLastActionRefresh()
+        }
         AppearanceSettingsUserDefaultsObserver.shared.startObserving()
         BrowserSystemProxyWatcher.shared.startObserving()
         if isRunningUnderXCTest {

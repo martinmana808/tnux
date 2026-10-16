@@ -2710,6 +2710,9 @@ final class Workspace: Identifiable, ObservableObject {
 #endif
     var restoredAgentSnapshotsByPanelId: [UUID: SessionRestorableAgentSnapshot] = [:]
     var surfaceResumeBindingsByPanelId: [UUID: SurfaceResumeBindingSnapshot] = [:]
+    /// Transcript paths reported by agent hooks, per panel; the preferred
+    /// source for last-action backfill (see `refreshLastActionFromTranscript`).
+    var panelTranscriptPathsByPanelId: [UUID: String] = [:]
     private var restoredGuardedWorkingDirectoriesByPanelId: [UUID: String] = [:]
     enum RestoredAgentResumeState: Equatable {
         case manualResumeAvailable
