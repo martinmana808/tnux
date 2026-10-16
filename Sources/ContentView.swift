@@ -6282,8 +6282,8 @@ struct ContentView: View {
         "ios", "ipados", "iphone", "ipad", "phone", "tablet", "qr",
     ]
 
-    static func recentFocusCommandID(for item: FocusHistoryMenuItem) -> String {
-        "palette.recentFocus.\(item.historyIndex)"
+    static func recentActionCommandID(for entry: PaneActionHistoryEntry) -> String {
+        "palette.recentAction.\(entry.id.uuidString)"
     }
 
     private func commandPaletteCommandContributions() -> [CommandPaletteCommandContribution] {
@@ -7450,21 +7450,51 @@ struct ContentView: View {
                 }
             )
         )
-        let recentlyFocusedLabel = String(localized: "menu.history.recentlyFocused", defaultValue: "Recently Focused")
+        let recentActionsLabel = String(localized: "menu.history.recentActions", defaultValue: "Recent Actions")
         let relativeFormatter = RelativeDateTimeFormatter()
         relativeFormatter.unitsStyle = .short
-        for item in tabManager.focusHistoryMenuSnapshot(direction: .back, maxItemCount: 15).items where item.isNavigable {
-            let age = relativeFormatter.localizedString(for: item.focusedAt, relativeTo: Date())
+        for entry in tabManager.paneActionHistoryEntries.prefix(15) {
+            let age = relativeFormatter.localizedString(for: entry.lastActionAt, relativeTo: Date())
             contributions.append(
                 CommandPaletteCommandContribution(
-                    commandId: Self.recentFocusCommandID(for: item),
-                    title: constant(item.panelTitle ?? item.workspaceTitle),
-                    subtitle: constant("\(recentlyFocusedLabel) • \(item.workspaceTitle) • \(age)"),
-                    keywords: ["recent", "recently", "focused", "history", "back", "last"],
+                    commandId: Self.recentActionCommandID(for: entry),
+                    title: constant(entry.title),
+                    subtitle: constant("\(recentActionsLabel) • \(entry.workspaceTitle) • \(age)"),
+                    keywords: ["recent", "recently", "focused", "history", "back", "last", "action", "prompted"],
                     when: { _ in true }
                 )
             )
         }
+        contributions.append(
+            CommandPaletteCommandContribution(
+                commandId: "palette.sidebar.toggleExpandAll",
+                title: { _ in
+                    SidebarPanesPreferences.shared.allExpanded(tabManager.tabs.map(\.id))
+                        ? SidebarPanesStrings.collapseAll : SidebarPanesStrings.expandAll
+                },
+                subtitle: constant(String(localized: "menu.panes.title", defaultValue: "Panes")),
+                keywords: ["sidebar", "expand", "collapse", "workspaces", "panes"],
+                when: { _ in true }
+            )
+        )
+        contributions.append(
+            CommandPaletteCommandContribution(
+                commandId: "palette.sidebar.toggleViewAll",
+                title: { _ in SidebarPanesPreferences.shared.viewAll ? SidebarPanesStrings.viewByWorkspace : SidebarPanesStrings.viewAll },
+                subtitle: constant(String(localized: "menu.panes.title", defaultValue: "Panes")),
+                keywords: ["sidebar", "view", "all", "panes", "flat", "workspaces"],
+                when: { _ in true }
+            )
+        )
+        contributions.append(
+            CommandPaletteCommandContribution(
+                commandId: "palette.sidebar.toggleSort",
+                title: { _ in SidebarPanesPreferences.shared.sort == .lastPrompted ? SidebarPanesStrings.sortLayout : SidebarPanesStrings.sortLastPrompted },
+                subtitle: constant(String(localized: "menu.panes.title", defaultValue: "Panes")),
+                keywords: ["sidebar", "sort", "panes", "prompted", "layout", "recent"],
+                when: { _ in true }
+            )
+        )
         for rows in 2...3 {
             contributions.append(
                 CommandPaletteCommandContribution(
@@ -8189,12 +8219,22 @@ struct ContentView: View {
                 NSSound.beep()
             }
         }
-        for item in tabManager.focusHistoryMenuSnapshot(direction: .back, maxItemCount: 15).items where item.isNavigable {
-            registry.register(commandId: Self.recentFocusCommandID(for: item)) {
-                if !tabManager.navigateToFocusHistoryMenuItem(item) {
+        for entry in tabManager.paneActionHistoryEntries.prefix(15) {
+            registry.register(commandId: Self.recentActionCommandID(for: entry)) {
+                if AppDelegate.shared?.focusPane(panelId: entry.id, workspaceId: entry.workspaceId) != true {
                     NSSound.beep()
                 }
             }
+        }
+        registry.register(commandId: "palette.sidebar.toggleExpandAll") {
+            SidebarPanesPreferences.shared.toggleAll(tabManager.tabs.map(\.id))
+        }
+        registry.register(commandId: "palette.sidebar.toggleViewAll") {
+            SidebarPanesPreferences.shared.viewAll.toggle()
+        }
+        registry.register(commandId: "palette.sidebar.toggleSort") {
+            let preferences = SidebarPanesPreferences.shared
+            preferences.sort = preferences.sort == .lastPrompted ? .layout : .lastPrompted
         }
         for rows in 2...3 {
             registry.register(commandId: "palette.arrangePanes.rows.\(rows)") {
@@ -10127,6 +10167,10 @@ struct VerticalTabsSidebar: View {
         initialSidebarFontSize: GhosttyConfig.load().sidebarFontSize
     )
     @ObservedObject private var keyboardShortcutSettingsObserver = KeyboardShortcutSettingsObserver.shared
+    // Pane rows under workspaces (Tnux): one value snapshot per window,
+    // rebuilt on focus/title/status changes and once a minute for the gauges.
+    @StateObject private var panesModel = SidebarPanesModel()
+    @ObservedObject private var panesPreferences = SidebarPanesPreferences.shared
     @State var dragState = SidebarDragState()
     // Bonsplit tab drags arrive through AppKit pasteboard callbacks, not
     // `SidebarDragState`, so they need a separate transient collection flag.
@@ -10637,6 +10681,7 @@ struct VerticalTabsSidebar: View {
             .frame(width: 0, height: 0)
         )
         .onAppear {
+            panesModel.attach(tabManager)
             if showModifierHoldHints {
                 modifierKeyMonitor.setHostWindow(observedWindow)
                 modifierKeyMonitor.start()
@@ -12025,26 +12070,58 @@ struct VerticalTabsSidebar: View {
         shouldCollectWorkspaceDropTargets: Bool
     ) -> some View {
         let renderItems = renderContext.workspaceRenderItems
+        let panesSnapshot = panesModel.snapshot
+        let paneFontScale = renderContext.tabItemSettings.sidebarFontScale
         // LazyVStack is safe here because `dragState` is @Observable:
         // drag mutations at 60fps invalidate only the rows/overlays that
         // read them, never this sidebar body. See SidebarDragState and
         // https://github.com/manaflow-ai/cmux/issues/2586.
         LazyVStack(spacing: tabRowSpacing) {
-            ForEach(renderItems, id: \.id) { item in
-                switch item {
-                case .groupHeader(let group, let memberWorkspaceIds):
-                    sidebarWorkspaceGroupHeader(
-                        group: group,
-                        memberWorkspaceIds: memberWorkspaceIds,
-                        renderContext: renderContext,
-                        shouldCollectWorkspaceDropTargets: shouldCollectWorkspaceDropTargets, showModifierHoldHints: showModifierHoldHints
+            // Panes that need you, and panes at work, above everything.
+            SidebarPaneSectionView(
+                title: SidebarPanesStrings.needsInput,
+                rows: panesSnapshot.needsInput,
+                fontScale: paneFontScale,
+                now: panesSnapshot.builtAt,
+                actions: paneRowActions
+            )
+            SidebarPaneSectionView(
+                title: SidebarPanesStrings.running,
+                rows: panesSnapshot.running,
+                fontScale: paneFontScale,
+                now: panesSnapshot.builtAt,
+                actions: paneRowActions
+            )
+            if panesPreferences.viewAll {
+                // Flat list of every pane, workspace name in muted text.
+                ForEach(panesSnapshot.allRows(sort: panesPreferences.sort)) { row in
+                    SidebarPaneRowView(
+                        row: row,
+                        showsWorkspace: true,
+                        fontScale: paneFontScale,
+                        now: panesSnapshot.builtAt,
+                        actions: paneRowActions
                     )
-                case .workspace(let tab):
-                    workspaceRow(
-                        tab,
-                        renderContext: renderContext,
-                        shouldCollectWorkspaceDropTargets: shouldCollectWorkspaceDropTargets
-                    )
+                    .equatable()
+                    .padding(.horizontal, SidebarWorkspaceListMetrics.rowOuterHorizontalPadding)
+                }
+            } else {
+                ForEach(renderItems, id: \.id) { item in
+                    switch item {
+                    case .groupHeader(let group, let memberWorkspaceIds):
+                        sidebarWorkspaceGroupHeader(
+                            group: group,
+                            memberWorkspaceIds: memberWorkspaceIds,
+                            renderContext: renderContext,
+                            shouldCollectWorkspaceDropTargets: shouldCollectWorkspaceDropTargets, showModifierHoldHints: showModifierHoldHints
+                        )
+                    case .workspace(let tab):
+                        workspaceRow(
+                            tab,
+                            renderContext: renderContext,
+                            shouldCollectWorkspaceDropTargets: shouldCollectWorkspaceDropTargets
+                        )
+                    }
                 }
             }
         }
@@ -12557,11 +12634,47 @@ struct VerticalTabsSidebar: View {
         .id(tab.id)
         .accessibilityIdentifier("sidebarWorkspace.\(tab.id.uuidString)")
 
-        row
-            .sidebarWorkspaceFrameAnchor(id: tab.id, isEnabled: shouldCollectWorkspaceDropTargets)
-            .padding(.leading, tab.groupId != nil ? SidebarWorkspaceGroupingMetrics.memberIndent : 0)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+        // Pane rows beneath the workspace: all of them when expanded, or an
+        // Arc-style peek of the focused pane when this is the selected
+        // workspace and it is collapsed.
+        let panesSnapshot = panesModel.snapshot
+        let isExpanded = panesPreferences.isExpanded(tab.id)
+        let paneCount = panesSnapshot.rowsByWorkspace[tab.id]?.count ?? 0
+        let rowsBelow: [SidebarPaneRow] = isExpanded
+            ? panesSnapshot.rows(for: tab.id, sort: panesPreferences.sort)
+            : (tab.id == tabManager.selectedTabId ? panesSnapshot.focusedRowByWorkspace[tab.id].map { [$0] } ?? [] : [])
+        let indent: CGFloat = tab.groupId != nil ? SidebarWorkspaceGroupingMetrics.memberIndent : 0
+        let paneFontScale = renderContext.tabItemSettings.sidebarFontScale
+
+        VStack(alignment: .leading, spacing: 1) {
+            row
+                .sidebarWorkspaceFrameAnchor(id: tab.id, isEnabled: shouldCollectWorkspaceDropTargets)
+                .padding(.leading, indent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .overlay(alignment: .leading) {
+                    SidebarWorkspaceChevron(isExpanded: isExpanded, paneCount: paneCount) {
+                        panesPreferences.toggle(tab.id)
+                    }
+                    .padding(.leading, indent + 1)
+                }
+            SidebarWorkspacePaneRows(
+                rows: rowsBelow,
+                indent: indent,
+                fontScale: paneFontScale,
+                now: panesSnapshot.builtAt,
+                actions: paneRowActions
+            )
+        }
+    }
+
+    /// Clicking a pane row focuses that pane (window, workspace, pane; zoom follows).
+    private var paneRowActions: SidebarPaneRowActions {
+        SidebarPaneRowActions(select: { row in
+            if AppDelegate.shared?.focusPane(panelId: row.id, workspaceId: row.workspaceId) != true {
+                NSSound.beep()
+            }
+        })
     }
 
     private func debugShortSidebarTabId(_ id: UUID?) -> String {
@@ -12810,10 +12923,12 @@ private struct SidebarFooterButtons: View {
     let onSendFeedback: () -> Void
     @State private var extensionBrowserAnchorView: NSView?
     @LiveSetting(\.betaFeatures.extensions) private var extensionsExperimentalEnabled
+    @EnvironmentObject private var tabManager: TabManager
 
     var body: some View {
         HStack(spacing: 4) {
             SidebarHelpMenuButton(onSendFeedback: onSendFeedback)
+            SidebarPanesControls(preferences: SidebarPanesPreferences.shared, workspaceIds: tabManager.tabs.map(\.id))
             // The puzzle button opens the extensions browser; it only shows
             // while the experimental Extensions feature is enabled.
             if extensionsExperimentalEnabled {

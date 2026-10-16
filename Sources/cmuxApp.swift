@@ -64,6 +64,7 @@ struct cmuxApp: App {
     @AppStorage(BrowserToolbarAccessorySpacingDebugSettings.key) private var browserToolbarAccessorySpacingRaw = BrowserToolbarAccessorySpacingDebugSettings.defaultSpacing
     @State private var browserFocusModeMenuRevision = 0
     @StateObject var focusHistoryMenuInvalidator = FocusHistoryMenuInvalidator()
+    @ObservedObject var sidebarPanesPreferences = SidebarPanesPreferences.shared
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.openWindow) private var openWindow
 

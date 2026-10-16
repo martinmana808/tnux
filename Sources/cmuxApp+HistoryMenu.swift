@@ -224,23 +224,28 @@ extension cmuxApp {
 
     @MainActor
     private func focusPaneMenuEntry(_ entry: PaneMenuEntry) {
-        guard let delegate = AppDelegate.shared else { return }
-        for context in delegate.mainWindowContexts.values {
-            guard let workspace = context.tabManager.tabs.first(where: { $0.id == entry.workspaceId }) else { continue }
-            if let window = delegate.mainWindow(for: context.windowId) {
-                window.makeKeyAndOrderFront(nil)
-            }
-            context.tabManager.selectTab(workspace)
-            workspace.focusPanel(entry.id)
-            return
+        if AppDelegate.shared?.focusPane(panelId: entry.id, workspaceId: entry.workspaceId) != true {
+            NSSound.beep()
         }
-        NSSound.beep()
     }
 
     @CommandsBuilder
     var panesCommands: some Commands {
         CommandMenu(String(localized: "menu.panes.title", defaultValue: "Panes")) {
             let entries = paneMenuEntries()
+            let preferences = sidebarPanesPreferences
+            let workspaceIds = activeTabManager.tabs.map(\.id)
+            Button(preferences.allExpanded(workspaceIds) ? SidebarPanesStrings.collapseAll : SidebarPanesStrings.expandAll) {
+                preferences.toggleAll(workspaceIds)
+            }
+            .disabled(preferences.viewAll)
+            Button(preferences.viewAll ? SidebarPanesStrings.viewByWorkspace : SidebarPanesStrings.viewAll) {
+                preferences.viewAll.toggle()
+            }
+            Button(preferences.sort == .lastPrompted ? SidebarPanesStrings.sortLayout : SidebarPanesStrings.sortLastPrompted) {
+                preferences.sort = preferences.sort == .lastPrompted ? .layout : .lastPrompted
+            }
+            Divider()
             let needsInput = entries.filter { $0.status == .needsInput }
             let running = entries.filter { $0.status == .running }
             if entries.isEmpty {
