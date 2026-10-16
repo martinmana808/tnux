@@ -528,6 +528,34 @@ def execute():
         return 6
     time.sleep(15)  # let one autosave land with the corrected tty table
 
+    if "--finish" not in sys.argv:
+        # Everything that needed the socket is done. Quitting the app kills
+        # the process tree of every pane, this job included when it was
+        # started from a terminal inside cmux (2026-10-16: the app quit and
+        # nothing got installed). Hand the rest to launchd, which is outside
+        # that tree.
+        return hand_off_to_launchd()
+    return finish(truth)
+
+
+def hand_off_to_launchd():
+    label = f"tnux-swap-finish-{datetime.now():%Y%m%d-%H%M%S}"
+    cmd = ["launchctl", "submit", "-l", label, "-o", LOG, "-e", LOG, "--",
+           sys.executable, os.path.abspath(__file__), "--finish"]
+    result = run(cmd, timeout=30)
+    if result.returncode != 0:
+        log(f"ABORT: launchctl submit failed ({result.stderr.strip()}); nothing changed on disk")
+        set_quit_confirmation(False)
+        return 7
+    log(f"handed the install to launchd job {label}")
+    return 0
+
+
+def finish(truth=None):
+    """Quit, repair the snapshot, swap the bundle, relaunch. Runs under
+    launchd (see hand_off_to_launchd) with the truth table from disk."""
+    if truth is None:
+        truth = json.load(open(os.path.join(STATE_DIR, "truth.json")))
     snapshot_backup = os.path.join(STATE_DIR, f"session-pre-swap-{datetime.now():%Y%m%d-%H%M%S}.json")
     quit_ok = quit_app()
     set_quit_confirmation(False)
@@ -597,8 +625,12 @@ if __name__ == "__main__":
         daemonize()
         DAEMONIZED = True
     try:
-        log(f"swap job started pid={os.getpid()}")
-        code = execute()
+        if "--finish" in sys.argv:
+            log(f"finish phase started under launchd pid={os.getpid()}")
+            code = finish()
+        else:
+            log(f"swap job started pid={os.getpid()}")
+            code = execute()
         log(f"swap job finished code={code}")
     except Exception:
         log("swap job crashed\n" + traceback.format_exc())
